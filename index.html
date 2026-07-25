@@ -1,137 +1,102 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="stylesheet" type="text/css" href="style.css">
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPG Kaleidoscope</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
 
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Full-viewport kaleidoscope output canvas -->
+    <canvas id="animation"></canvas>
 
-        <meta property="og:title" content="Colliding Scopes: kaleidoscope animations" />
-        <meta property="og:description" content="Turn photos into kaleidoscope animations" />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://collidingscopes.github.io/" />
-        <meta property="og:image" content="https://collidingscopes.github.io/images/siteOGImage.png">
-        <meta property="og:image:type" content="image/png" >
-        <meta property="og:image:width" content="800" >
-        <meta property="og:image:height" content="800" >
+    <!-- First fold: just the canvas, no copy -->
+    <div class="first-fold"></div>
 
-        <link rel="icon" href="images/siteFavicon3.png">
-        <link rel="apple-touch-icon" href="images/siteFavicon3.png">
+    <button id="toggleControls" class="toggle-controls" title="Show/hide controls">🪞</button>
 
-        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3379349972139570"
-        crossorigin="anonymous"></script>
-    </head>
-    <body>
-        
-        <div id="coverScreen" class="hidden">
-        </div>
+    <!-- Everything below the fold: merged settings panel -->
+    <section class="control-section">
+        <div id="stickyTable" class="control-dock">
 
-        <div id="toolDiv">
+            <!-- Top bar: master modes + single master speed control -->
+            <div class="top-bar">
+                <div class="master-modes">
+                    <button class="btn" id="btn-all-smooth" data-brand="all">
+                        <span class="tag">ALL</span> Smooth Cycle
+                    </button>
+                    <button class="btn" id="btn-all-chaos" data-brand="all">
+                        <span class="tag">ALL</span> Chaos Morph
+                    </button>
+                </div>
 
-            <canvas id="animation"></canvas>
+                <div class="speed-control">
+                    <span>Animation Speed</span>
+                    <input type="range" id="speedInput" min="0.0" max="2.0" step="0.05" value="1.0">
+                    <span class="speed-val" id="speedVal">1.00x</span>
+                </div>
+            </div>
 
-            <button id="toggleControls" class="toggle-controls">🪞</button>
-            <div id="stickyTable">
+            <!-- Palette / RGB effect selection (Stage 1: World) -->
+            <div class="section-group">
+                <div class="section-title">Palette &amp; Color Effect (RPG Engine)</div>
+                <div class="preset-buttons" id="color-presets">
+                    <button class="btn btn-rgb active" data-rgb="chroma-spectrum" data-brand="razer">
+                        <span class="tag">Razer</span> Chroma Spectrum
+                    </button>
+                    <button class="btn btn-rgb" data-rgb="chroma-pulse" data-brand="razer">
+                        <span class="tag">Razer</span> Chroma Pulse
+                    </button>
+                    <button class="btn btn-rgb" data-rgb="chroma-aurora" data-brand="razer">
+                        <span class="tag">Razer</span> Chroma Aurora
+                    </button>
+                    <button class="btn btn-rgb" data-rgb="chroma-hypershift" data-brand="razer">
+                        <span class="tag">Razer</span> Chroma Shift
+                    </button>
+                    <button class="btn btn-rgb" data-rgb="rainbow-wave" data-brand="corsair">
+                        <span class="tag">Corsair</span> Rainbow Wave
+                    </button>
+                    <button class="btn btn-rgb" data-rgb="spiral-rainbow" data-brand="corsair">
+                        <span class="tag">Corsair</span> Spiral Wave
+                    </button>
+                    <button class="btn btn-rgb" data-rgb="cascading-rainbow" data-brand="corsair">
+                        <span class="tag">Corsair</span> Cascade
+                    </button>
+                </div>
+            </div>
+
+            <!-- Artwork + kaleidoscope settings (Stage 2 / Stage 3) -->
+            <div class="section-group">
+                <div class="section-title">Artwork &amp; Kaleidoscope</div>
                 <table id="inputTable">
                     <tr>
                         <td>
                             <label for="imageInput" class="custom-file-upload">
-                                <i class="fa fa-cloud-upload"></i> Select Image
+                                Upload Artwork (PNG)
                             </label>
-                            <input type="file" id="imageInput" accept="image/*">
-                        </td>
-                        <td>
-                            <pre><span class="tableText">Animation Speed</span><br><input class="input-number-noSpinners" type="range" id="speedInput" value="3" min="1" max="15"></pre>
+                            <input type="file" id="imageInput" accept="image/png,image/*">
+                            <div class="file-name" id="artworkFileName">No artwork uploaded — showing raw color engine</div>
                         </td>
                         <td>
                             <pre><span class="tableText"># of Tiles</span><br><input class="input-number-noSpinners" type="range" id="numTilesInput" value="5" min="2" max="25"></pre>
                         </td>
-                        <!--
-                        <td><button id="pauseAnimationButton">Pause/Play (p)</button></td>
-                        <td><button id="save-image-button">Screenshot (s)</button></td>
-                        -->
                     </tr>
                     <tr>
                         <td><span class="tableText">Width: </span><input type="number" id="canvasWidthInput" class="input-number-noSpinners" value="800" min="1"></td>
                         <td><span class="tableText">Height: </span><input type="number" id="canvasHeightInput" class="input-number-noSpinners" value="800" min="1"></td>
-                        <td><button id="recordVideoButton" class="recordButton">Record Video (r)</button></td>
-                        <td><span class="tableText">Seconds: </span><input type="number" id="videoDurationInput" class="input-number-noSpinners" value="10" min="1" max="120"></td>
+                        <td><button id="screenshotButton">Screenshot (s)</button></td>
                     </tr>
-    
                 </table>
             </div>
 
-            <div id="videoRecordingMessageDiv" class="hidden sticky-bottom">
-            </div>
-            
-            <div id="imageContainer" class="hidden">
-                <img id="originalImg" src="images/HK400px.jpg">
-            </div>
-            <div id="newImageContainer" class="hidden">
-                <img id="flippedImg" src="images/HK400pxFlipped.jpg">
-            </div>
-
         </div>
+    </section>
 
-        <!-- <div id="introDiv">
-            <span id="siteNameText">Colliding Scopes</span>
-            <span id="subtitleText">Turn photos into kaleidoscope animations</span>
-        </div> -->
+    <script src="world-rpg.js"></script>
+    <script src="artwork-mask.js"></script>
+    <script src="kaleidoscope-engine.js"></script>
+    <script src="main.js"></script>
 
-        <div id="notesDiv">
-
-            <div id="textBox">
-
-                <h2 id="aboutText">COLLIDING SCOPES 🪞</h2>
-
-                <p>Turn photos into kaleidoscope animations -- for free, in real-time, directly in the browser!</p>
-                <p>Click the 🪞 button at the bottom-right to close/show the controls. You can use the menu to upload a new image, adjust the animation speed / number of kaleidoscope tiles / canvas size, and to export the animation as a video file.</p>
-                <p>A few ideas for how this could be used: creating Spotify canvas art, generating stylized animations for video projects, and assets for product promo or marketing videos.</p>
-                <p>This web tool is completely free, open source, without any paywalls or premium options. You are welcome to use it for personal or commercial purposes.</p>
-                <p>If you found this tool useful, feel free to buy me a coffee. My name is Alan, and I enjoy building open source software for art, animation, games, and more. This would be much appreciated during late-night coding sessions!</p>
-                
-                <a href="https://www.buymeacoffee.com/stereoDrift" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/yellow_img.png" alt="Buy Me A Coffee"></a>
-
-                <p>Enormous thanks and credits to Luke Hannam, whose <a href="https://www.pepperoni.blog/canvas-kaleidoscope/" target="_blank" rel="noopener">blog post</a> explained the code and mechanics for creating kaleidoscope animations in javascript.</p>
-                <p>I made only a few tweaks to Luke's original algorithm, with my main work being to add the front-end user interface allowing users to upload their own photos, control variables like animation speed, and easily export the canvas animation to video.</p>
-                <p>There are a few hotkeys which can speed up using the tool:</p>
-                <ul>
-                    <li>Press <b>"r"</b> to start recording a video of the animation. You can specify the length of the video in seconds. An mp4 video file will be exported to your downloads folder afterwards</li>
-                    <li>Press <b>"p"</b> to pause / play the animation. This lets you stop at an interesting point of the animation</li>
-                    <li>Press <b>"s"</b> to save a screenshot of the current state of the animation (png image)</li>
-                </ul>
-                <p>This project is coded using Javascript, HTML-5 canvas, and CSS (<a href="https://github.com/collidingScopes/collidingScopes.github.io" target="_blank" rel="noopener">see github repo</a>). Video creation and encoding is done using mp4 muxer.</p>
-                <p>I do not have access to any of the images that you upload here, as all processing is done "client-side" (i.e., <b>no images are saved or stored by me — they stay on your computer only</b>).</p>
-                <p>If you enjoyed this, you may be interested in my other free / open source projects:</p>
-                <ul>
-                  <li><a href="https://collidingScopes.github.io/ascii" target="_blank" rel="noopener">Video-to-ASCII</a>: turn videos into ASCII pixel art</li>
-                  <li><a href="https://collidingScopes.github.io/particular-drift" target="_blank" rel="noopener">Particular Drift</a>: turn images into flowing particle animations</li>
-                  <li><a href="https://collidingScopes.github.io/shimmer" target="_blank" rel="noopener">Shape Shimmer</a>: turn photos into funky wave animations</li>
-                  <li><a href="https://collidingScopes.github.io/forcefield" target="_blank" rel="noopener">Force-Field Animation</a>: turn photos into particle animations</li>
-                  <li><a href="https://manual-brick-breaker.netlify.app" target="_blank" rel="noopener">Manual Brick Breaker</a>: play brick breaker by waving your hands around</li>
-                </ul>
-                <p>Feel free to reach out to discuss, ask questions, or just to say hi! You can find me <a href="https://www.instagram.com/stereo.drift/" target="_blank" rel="noopener">@stereo.drift</a> on instagram, or through the other places below :)</p>
-            </div>
-        </div>
-
-        <div id="linksDiv">
-            <table id="infoMenuTable">
-                <tr>
-                    <td><button id="gitHubButton"class="socialMediaButton"><a href="https://github.com/collidingScopes/collidingScopes.github.io" target="_blank" rel="noopener"><i class="fa-brands fa-github"></i></a></button></td>
-                    <td><button id="coffeeButton" class="socialMediaButton"><a href="https://www.buymeacoffee.com/stereoDrift" target="_blank" rel="noopener"><i class="fa-solid fa-heart"></i></a></button></td>
-                    <td><button id="instagramButton" class="socialMediaButton"><a href="https://www.instagram.com/stereo.drift/" target="_blank" rel="noopener"><i class="fa-brands fa-instagram"></i></a></button></td>
-                    <td><button id="xButton" class="socialMediaButton"><a class="x-link" href="https://x.com/measure_plan" target="_blank" rel="noopener">𝕏</i></a></button></td>
-                    <td><button id="emailButton" class="socialMediaButton"><a href="mailto:stereodriftvisuals@gmail.com" target="_blank" rel="noopener"><i class="fa-solid fa-envelope"></i></a></button></td>
-                </tr>
-            </table>
-        </div>
-
-
-    </body>
-
-    <script src="videoExportFunctions.js"></script>
-    <script src="kaleidoscope.js"></script>
-    <script src="mp4-muxer-main/build/mp4-muxer.js"></script>
-
+</body>
 </html>
