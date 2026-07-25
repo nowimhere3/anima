@@ -3,13 +3,17 @@
    ------------------------------------------------------------
    Pipeline every frame:
 
-       World.update/render  ->  ArtworkMask.render  ->  KaleidoscopeEngine.renderFrame
+       World  ->  Mask  ->  Optics  ->  Display
 
-   main.js is the only file that knows all three stages exist.
-   Each stage only knows the shape of what it receives, not who
-   produced it — that's what makes future Worlds (Plasma, Fire,
-   Clouds, Water, Nebula, ...) a drop-in: implement update()/
-   render() with World's signature, point ACTIVE_WORLD at it.
+       World.update/render  ->  Mask.render  ->  OpticalEngine.renderFrame  ->  canvas on screen
+
+   main.js is the only file that knows all three engines exist.
+   Each engine only knows the shape of what it receives, not who
+   produced it — Optics in particular never sees "World" or
+   "Mask," only a plain Source Canvas. That's what makes future
+   Worlds (Plasma, Fire, Clouds, Water, Nebula, ...) a drop-in:
+   implement update()/render() with World's signature and point
+   the loop below at it — Mask and Optics never need to change.
    ============================================================ */
 
 (function () {
@@ -37,12 +41,12 @@
     let scaledWidth = 400, scaledHeight = 400;
     let maxImageWidth;
 
-    const worldTileCanvas = document.createElement('canvas');
-    const worldCtx = worldTileCanvas.getContext('2d');
-    const flippedTileCanvas = document.createElement('canvas');
-    const flippedCtx = flippedTileCanvas.getContext('2d');
+    const worldCanvas = document.createElement('canvas');
+    const worldCtx = worldCanvas.getContext('2d');
+    const flippedCanvas = document.createElement('canvas');
+    const flippedCtx = flippedCanvas.getContext('2d');
 
-    KaleidoscopeEngine.init(canvas);
+    OpticalEngine.init(canvas);
 
     function getUserInputs() {
         canvasWidth = Number(canvasWidthInput.value);
@@ -61,17 +65,17 @@
             scaledWidth = actualWidth;
             scaledHeight = actualHeight;
         }
-        worldTileCanvas.width = Math.max(1, Math.round(scaledWidth));
-        worldTileCanvas.height = Math.max(1, Math.round(scaledHeight));
-        flippedTileCanvas.width = worldTileCanvas.width;
-        flippedTileCanvas.height = worldTileCanvas.height;
-        ArtworkMask.resize(worldTileCanvas.width, worldTileCanvas.height);
+        worldCanvas.width = Math.max(1, Math.round(scaledWidth));
+        worldCanvas.height = Math.max(1, Math.round(scaledHeight));
+        flippedCanvas.width = worldCanvas.width;
+        flippedCanvas.height = worldCanvas.height;
+        Mask.resize(worldCanvas.width, worldCanvas.height);
     }
 
     function applySettings() {
         getUserInputs();
-        KaleidoscopeEngine.setCanvasSize(canvasWidth, canvasHeight);
-        KaleidoscopeEngine.setNumTiles(numTiles);
+        OpticalEngine.setCanvasSize(canvasWidth, canvasHeight);
+        OpticalEngine.setNumTiles(numTiles);
         resizeTile();
     }
 
@@ -84,7 +88,7 @@
         destCtx.restore();
     }
 
-    // ---- artwork upload (Stage 2 input) ----
+    // ---- artwork upload (Mask input) ----
     imageInput.addEventListener('change', function () {
         const file = imageInput.files[0];
         if (!file) return;
@@ -94,7 +98,7 @@
             img.onload = function () {
                 actualWidth = img.width;
                 actualHeight = img.height;
-                ArtworkMask.setArtwork(img);
+                Mask.setArtwork(img);
                 resizeTile();
             };
             img.src = event.target.result;
@@ -134,25 +138,25 @@
     });
 
     // ---- screenshot ----
-    screenshotButton.addEventListener('click', () => KaleidoscopeEngine.saveImage());
+    screenshotButton.addEventListener('click', () => OpticalEngine.saveImage());
 
     // ---- hotkeys (screenshot only; play/pause & video export are out of
     // scope here since videoExportFunctions.js was not part of the source
     // repo this build is based on) ----
     document.addEventListener('keydown', function (event) {
-        if (event.key === 's') KaleidoscopeEngine.saveImage();
+        if (event.key === 's') OpticalEngine.saveImage();
     });
 
     // ---- render loop ----
     function loop() {
         World.update(0.01, masterSpeed);
-        World.render(worldCtx, worldTileCanvas.width, worldTileCanvas.height);
+        World.render(worldCtx, worldCanvas.width, worldCanvas.height);
 
-        const maskedTile = ArtworkMask.render(worldTileCanvas, worldTileCanvas.width, worldTileCanvas.height);
-        flipHorizontal(maskedTile, flippedCtx, flippedTileCanvas);
+        const sourceCanvas = Mask.render(worldCanvas, worldCanvas.width, worldCanvas.height);
+        flipHorizontal(sourceCanvas, flippedCtx, flippedCanvas);
 
-        KaleidoscopeEngine.setSpeed(masterSpeed);
-        KaleidoscopeEngine.renderFrame(maskedTile, flippedTileCanvas);
+        OpticalEngine.setSpeed(masterSpeed);
+        OpticalEngine.renderFrame(sourceCanvas, flippedCanvas);
 
         requestAnimationFrame(loop);
     }
