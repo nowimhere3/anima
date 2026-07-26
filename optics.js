@@ -77,11 +77,11 @@ const OpticalEngine = (function () {
         return Math.ceil(animationWidth / numTiles);
     }
 
-    // Single master-speed control (0..2, same range as the RPG engine's
+    // Single master-speed control (0..5, same range as the RPG engine's
     // speed slider) mapped onto the original animationSpeed formula,
     // which used a 1..15 "speedInputValue". larger animationSpeed = slower.
     function setSpeed(masterSpeed) {
-        const speedInputValue = Math.max(0.1, masterSpeed) * 5; // 0..2 -> 0.5..10, matches original 1..15 feel
+        const speedInputValue = Math.max(0.1, masterSpeed) * 5; // 0..5 -> 0.5..25, extends past original 1..15 feel for extra range
         animationSpeed = 8000 / speedInputValue * (numTiles / 2.5);
     }
 
