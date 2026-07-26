@@ -91,10 +91,11 @@
                                 Upload Artwork (PNG)
                             </label>
                             <input type="file" id="imageInput" accept="image/png,image/*">
+                            <button id="saveArtworkButton" class="save-artwork-button" disabled>Save Artwork</button>
                             <div class="file-name" id="artworkFileName">No artwork uploaded — showing raw color engine</div>
                         </td>
                         <td>
-<pre><span class="tableText"># of Tiles</span><br><input type="number" id="numTilesNumberInput" class="input-number-noSpinners" value="5" min="2" max="25"> <input class="input-number-noSpinners" type="range" id="numTilesInput" value="5" min="2" max="25"></pre>
+                            <pre><span class="tableText"># of Tiles</span><br><input type="number" id="numTilesNumberInput" class="input-number-noSpinners" value="5" min="2" max="25"> <input class="input-number-noSpinners" type="range" id="numTilesInput" value="5" min="2" max="25"></pre>
                         </td>
                     </tr>
                     <tr>
@@ -105,12 +106,21 @@
                 </table>
             </div>
 
+            <!-- Persistent Artwork Library (Phase 1) -->
+            <div class="section-group">
+                <div class="section-title">Artwork Library</div>
+                <div class="library-grid" id="artworkLibraryGrid">
+                    <div class="library-empty" id="artworkLibraryEmpty">No saved artwork yet — upload something and hit Save Artwork.</div>
+                </div>
+            </div>
+
         </div>
     </section>
 
     <script src="world.js"></script>
     <script src="mask.js"></script>
     <script src="optics.js"></script>
+    <script src="library.js"></script>
     <script src="main.js"></script>
 
 </body>
