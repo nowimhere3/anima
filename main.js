@@ -19,6 +19,16 @@
 (function () {
     "use strict";
 
+    // Browsers restore scroll position on reload by default. During dev/
+    // testing you scroll down to the controls a lot, and on the next
+    // refresh the browser silently puts you right back there — which
+    // looks exactly like "controls are above the fold" even though the
+    // layout itself is correct. Force every load to start clean at top.
+    if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
+    }
+    window.scrollTo(0, 0);
+
     // ---- DOM ----
     const canvas = document.getElementById('animation');
     const imageInput = document.getElementById('imageInput');
