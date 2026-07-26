@@ -169,3 +169,64 @@ const World = (function () {
                 const bGrad = c.createRadialGradient(width / 2, height / 2, 10, width / 2, height / 2, Math.max(width, height) * 0.7);
                 bGrad.addColorStop(0, `hsla(${currentBreathHue}, 100%, ${65 * bLum}%, 1)`);
                 bGrad.addColorStop(1, `hsla(${currentBreathHue}, 100%, ${10 * bLum}%, 1)`);
+                c.fillStyle = bGrad; c.fillRect(0, 0, width, height);
+                break;
+            }
+
+            case 'logi-lightsync': {
+                const logiHue = (time * 60) % 360;
+                const logiG = c.createLinearGradient(0, 0, width, height);
+                logiG.addColorStop(0, `hsl(${logiHue}, 100%, 50%)`);
+                logiG.addColorStop(1, `hsl(${(logiHue + 60) % 360}, 100%, 40%)`);
+                c.fillStyle = logiG; c.fillRect(0, 0, width, height);
+                break;
+            }
+
+            case 'msi-mystic': {
+                const mGrad = c.createRadialGradient(width / 2, height / 2, 20, width / 2, height / 2, Math.max(width, height) * 0.6);
+                const mHue = (time * 50) % 360;
+                mGrad.addColorStop(0, `hsl(${mHue}, 100%, 65%)`);
+                mGrad.addColorStop(0.5, `hsl(${(mHue + 180) % 360}, 100%, 45%)`);
+                mGrad.addColorStop(1, '#000000');
+                c.fillStyle = mGrad; c.fillRect(0, 0, width, height);
+                break;
+            }
+
+            case 'nzxt-cam': {
+                const nzHue = (time * 65) % 360;
+                const nzGrad = c.createLinearGradient(0, height, width, 0);
+                nzGrad.addColorStop(0, `hsl(${nzHue}, 100%, 60%)`);
+                nzGrad.addColorStop(1, `hsl(${(nzHue + 90) % 360}, 100%, 50%)`);
+                c.fillStyle = nzGrad; c.fillRect(0, 0, width, height);
+                break;
+            }
+
+            case 'breath-spectrum': {
+                const bsVal = Math.sin(time * 1.8) * 0.5 + 0.5;
+                const bsHue = (time * 50) % 360;
+                const bsGrad = c.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, Math.max(width, height) * 0.75);
+                bsGrad.addColorStop(0, `hsl(${bsHue}, 100%, ${70 * bsVal}%)`);
+                bsGrad.addColorStop(0.5, `hsl(${(bsHue + 60) % 360}, 100%, ${45 * bsVal}%)`);
+                bsGrad.addColorStop(1, `hsl(${(bsHue + 120) % 360}, 100%, ${15 * bsVal}%)`);
+                c.fillStyle = bsGrad; c.fillRect(0, 0, width, height);
+                break;
+            }
+        }
+    }
+
+    function render(ctx, width, height) {
+        drawRGBBase(activeRGB, ctx, width, height);
+    }
+
+    return {
+        update,
+        render,
+        setActiveRGB,
+        toggleMasterMode,
+        disableMasterMode,
+        rgbList,
+        get activeRGB() { return activeRGB; },
+        get isMasterAllMode() { return isMasterAllMode; },
+        get masterModeType() { return masterModeType; }
+    };
+})();
