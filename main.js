@@ -44,12 +44,25 @@
     const btnAllSmooth = document.getElementById('btn-all-smooth');
     const btnAllChaos = document.getElementById('btn-all-chaos');
     const artworkFileName = document.getElementById('artworkFileName');
+    const saveArtworkButton = document.getElementById('saveArtworkButton');
+    const artworkLibraryGrid = document.getElementById('artworkLibraryGrid');
+    const artworkLibraryEmpty = document.getElementById('artworkLibraryEmpty');
 
     // ---- state ----
     let canvasWidth, canvasHeight, numTiles, masterSpeed;
     let actualWidth = 400, actualHeight = 400; // placeholder aspect until artwork is uploaded
     let scaledWidth = 400, scaledHeight = 400;
     let maxImageWidth;
+
+    // Active artwork bookkeeping (Phase 1: Persistent Artwork Library).
+    // activeArtworkBlob is what Save Artwork actually persists.
+    // activeArtworkId is set only when the active artwork IS a saved
+    // library entry (so we know which card to highlight, and can skip
+    // re-saving a duplicate). A fresh upload clears it back to null —
+    // uploading never auto-saves.
+    let activeArtworkBlob = null;
+    let activeArtworkId = null;
+    let libraryObjectURLs = [];
 
     const worldCanvas = document.createElement('canvas');
     const worldCtx = worldCanvas.getContext('2d');
@@ -98,7 +111,7 @@
         destCtx.restore();
     }
 
-    // ---- artwork upload (Mask input) ----
+    // ---- artwork upload (Mask input) — TEMPORARY until explicitly saved ----
     imageInput.addEventListener('change', function () {
         const file = imageInput.files[0];
         if (!file) return;
@@ -115,7 +128,117 @@
         };
         reader.readAsDataURL(file);
         artworkFileName.textContent = file.name;
+
+        // A fresh upload is active-but-unsaved: it disappears on reload
+        // unless Save Artwork is pressed. It is NOT the same as any
+        // previously-active saved library entry.
+        activeArtworkBlob = file;
+        activeArtworkId = null;
+        saveArtworkButton.disabled = false;
+        renderLibrary();
     });
+
+    // ---- Save Artwork: persist the currently active artwork ----
+    saveArtworkButton.addEventListener('click', () => {
+        if (!activeArtworkBlob) return;
+        const defaultName = (imageInput.files[0] && imageInput.files[0].name.replace(/\.[^.]+$/, '')) || 'Untitled Artwork';
+        const name = window.prompt('Name this artwork:', defaultName);
+        if (name === null) return; // cancelled
+        ArtworkLibrary.saveArtwork(name.trim() || 'Untitled Artwork', activeArtworkBlob).then((record) => {
+            activeArtworkId = record.id;
+            saveArtworkButton.disabled = true; // already saved, nothing new to save
+            renderLibrary();
+        });
+    });
+
+    // ---- Artwork Library: render saved entries, wire Use/Rename/Delete ----
+    function renderLibrary() {
+        ArtworkLibrary.getAll().then((records) => {
+            libraryObjectURLs.forEach(url => URL.revokeObjectURL(url));
+            libraryObjectURLs = [];
+            artworkLibraryGrid.innerHTML = '';
+
+            if (records.length === 0) {
+                artworkLibraryGrid.appendChild(artworkLibraryEmpty);
+                return;
+            }
+
+            records.forEach((record) => {
+                const objectUrl = URL.createObjectURL(record.blob);
+                libraryObjectURLs.push(objectUrl);
+
+                const item = document.createElement('div');
+                item.className = 'library-item' + (record.id === activeArtworkId ? ' active' : '');
+
+                const thumb = document.createElement('img');
+                thumb.className = 'library-thumb';
+                thumb.src = objectUrl;
+                thumb.alt = record.name;
+
+                const nameEl = document.createElement('div');
+                nameEl.className = 'library-name';
+                nameEl.textContent = record.name;
+                nameEl.title = record.name;
+
+                const actions = document.createElement('div');
+                actions.className = 'library-actions';
+
+                const useBtn = document.createElement('button');
+                useBtn.textContent = 'Use';
+                useBtn.addEventListener('click', () => useArtwork(record));
+
+                const renameBtn = document.createElement('button');
+                renameBtn.textContent = 'Rename';
+                renameBtn.addEventListener('click', () => {
+                    const newName = window.prompt('Rename artwork:', record.name);
+                    if (newName === null) return;
+                    ArtworkLibrary.rename(record.id, newName.trim() || record.name).then(renderLibrary);
+                });
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = 'Delete';
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.addEventListener('click', () => {
+                    const confirmed = window.confirm(`Delete "${record.name}"? This can't be undone.`);
+                    if (!confirmed) return;
+                    ArtworkLibrary.remove(record.id).then(() => {
+                        if (activeArtworkId === record.id) activeArtworkId = null;
+                        renderLibrary();
+                    });
+                });
+
+                actions.appendChild(useBtn);
+                actions.appendChild(renameBtn);
+                actions.appendChild(deleteBtn);
+
+                item.appendChild(thumb);
+                item.appendChild(nameEl);
+                item.appendChild(actions);
+                artworkLibraryGrid.appendChild(item);
+            });
+        });
+    }
+
+    // Selecting a saved artwork makes it the active mask immediately,
+    // no re-upload needed — same Mask.setArtwork() path as a fresh upload.
+    function useArtwork(record) {
+        const objectUrl = URL.createObjectURL(record.blob);
+        const img = new Image();
+        img.onload = function () {
+            actualWidth = img.width;
+            actualHeight = img.height;
+            Mask.setArtwork(img);
+            resizeTile();
+            URL.revokeObjectURL(objectUrl);
+        };
+        img.src = objectUrl;
+
+        activeArtworkBlob = record.blob;
+        activeArtworkId = record.id;
+        saveArtworkButton.disabled = true; // already saved
+        artworkFileName.textContent = record.name;
+        renderLibrary();
+    }
 
     // ---- settings inputs ----
     [canvasWidthInput, canvasHeightInput].forEach(el => {
@@ -199,5 +322,6 @@
     });
 
     applySettings();
+    renderLibrary();
     requestAnimationFrame(loop);
 })();
