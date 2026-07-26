@@ -33,6 +33,7 @@
     const canvas = document.getElementById('animation');
     const imageInput = document.getElementById('imageInput');
     const numTilesInput = document.getElementById('numTilesInput');
+    const numTilesNumberInput = document.getElementById('numTilesNumberInput');
     const canvasWidthInput = document.getElementById('canvasWidthInput');
     const canvasHeightInput = document.getElementById('canvasHeightInput');
     const speedInput = document.getElementById('speedInput');
@@ -60,7 +61,7 @@
     function getUserInputs() {
         canvasWidth = Number(canvasWidthInput.value);
         canvasHeight = Number(canvasHeightInput.value);
-        numTiles = Number(numTilesInput.value);
+        numTiles = Number(numTilesNumberInput.value);
         masterSpeed = Number(speedInput.value);
         speedVal.textContent = masterSpeed.toFixed(2) + 'x';
         maxImageWidth = Math.ceil(canvasWidth / numTiles);
@@ -117,8 +118,17 @@
     });
 
     // ---- settings inputs ----
-    [canvasWidthInput, canvasHeightInput, numTilesInput].forEach(el => {
+    [canvasWidthInput, canvasHeightInput].forEach(el => {
         el.addEventListener('change', applySettings);
+    });
+    // # of Tiles: number box is the default entry point, slider mirrors it
+    numTilesNumberInput.addEventListener('change', () => {
+        numTilesInput.value = numTilesNumberInput.value;
+        applySettings();
+    });
+    numTilesInput.addEventListener('input', () => {
+        numTilesNumberInput.value = numTilesInput.value;
+        applySettings();
     });
     speedInput.addEventListener('input', getUserInputs);
 
