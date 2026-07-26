@@ -29,7 +29,6 @@
     const speedVal = document.getElementById('speedVal');
     const screenshotButton = document.getElementById('screenshotButton');
     const toggleButton = document.getElementById('toggleControls');
-    const controls = document.getElementById('stickyTable');
     const rgbBtns = document.querySelectorAll('.btn-rgb');
     const btnAllSmooth = document.getElementById('btn-all-smooth');
     const btnAllChaos = document.getElementById('btn-all-chaos');
@@ -132,9 +131,18 @@
     btnAllSmooth.addEventListener('click', () => toggleMasterModeUI('smooth', btnAllSmooth));
     btnAllChaos.addEventListener('click', () => toggleMasterModeUI('chaos', btnAllChaos));
 
-    // ---- controls dock toggle ----
+    // ---- controls dock: scroll down to reveal ----
+    // The dock lives below the fold by default (pure document flow —
+    // nothing needs to be hidden/shown). This button's job is just to
+    // get the user there, or back to the clean fullscreen view.
+    const controlSection = document.querySelector('.control-section');
     toggleButton.addEventListener('click', () => {
-        controls.classList.toggle('hidden');
+        const scrolledToControls = window.scrollY > window.innerHeight * 0.5;
+        if (scrolledToControls) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            controlSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
     });
 
     // ---- screenshot ----
