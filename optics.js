@@ -99,124 +99,13 @@ const OpticalEngine = (function () {
         const offset = Math.sin(counter / animationSpeed * Math.PI) * animationLength; // forward then backward
         counter++;
 
-        ctx.save();
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.translate(-0.5 * patDim, 0);
-
-        const fn = function (alternateMode) {
-            let i = 0;
-
-            // draw kaleidoscope first row.
-            ctx.save();
-            ctx.fillStyle = pat;
-            ctx.translate(0, offset);
-            while (i <= 3) {
-                ctx.beginPath();
-                ctx.moveTo(0, -offset);
-                ctx.lineTo(patDim, -offset);
-                ctx.lineTo(0.5 * patDim, height - offset);
-                ctx.closePath();
-                ctx.fill();
-                if (i % 3 == 0) {
-                    ctx.translate(patDim, -offset);
-                    ctx.rotate(-120 * Math.PI / 180);
-                    ctx.translate(-patDim, offset);
-                }
-                else if (i % 3 == 1) {
-                    if (alternateMode) {
-                        ctx.rotate(120 * Math.PI / 180);
-                        ctx.translate(-3 * patDim, 0);
-                        ctx.rotate(-120 * Math.PI / 180);
-                    }
-                    ctx.translate(0.5 * patDim, height - offset);
-                    ctx.rotate(-120 * Math.PI / 180);
-                    ctx.translate(-0.5 * patDim, -height + offset);
-                }
-                else if (i % 3 == 2) {
-                    ctx.translate(0, -offset);
-                    ctx.rotate(-120 * Math.PI / 180);
-                    ctx.translate(0, offset);
-                }
-                i++;
-            }
-
-            ctx.restore();
-            ctx.save();
-            ctx.scale(-1, -1);
-            ctx.fillStyle = patR;
-            ctx.translate((-i + (i % 3 == 0 ? 0.5 : i % 3 == 1 ? 1.5 : -0.5)) * patDim, -height + offset);
-            ctx.translate(0, -offset);
-            ctx.rotate(120 * Math.PI / 180);
-            ctx.translate(0, offset);
-
-            let j = 0;
-            while (j < i + 1) {
-                ctx.beginPath();
-                if (j > 0 || !alternateMode) {
-                    ctx.moveTo(0, -offset);
-                    ctx.lineTo(patDim, -offset);
-                    ctx.lineTo(0.5 * patDim, height - offset);
-                    ctx.closePath();
-                    ctx.fill();
-                }
-                if (j % 3 == 1) {
-                    ctx.translate(patDim, -offset);
-                    ctx.rotate(-120 * Math.PI / 180);
-                    ctx.translate(-patDim, offset);
-                }
-                else if (j % 3 == 2) {
-                    ctx.translate(0.5 * patDim, height - offset);
-                    ctx.rotate(-120 * Math.PI / 180);
-                    ctx.translate(-0.5 * patDim, -height + offset);
-                }
-                else if (j % 3 == 0) {
-                    ctx.translate(0, -offset);
-                    ctx.rotate(-120 * Math.PI / 180);
-                    ctx.translate(0, offset);
-                }
-                j++;
-            }
-
-            ctx.restore();
-        };
-
-        const patternHeight = Math.floor(SqrtOf3_4 * patDim * 2);
-
-        // tile function makes the animation fill up the whole canvas width/height
-        const tile = function () {
-            const rowData = ctx.getImageData(0, 0, patDim * 3, patternHeight);
-            for (let i = 0; patternHeight * i < animationHeight + SqrtOf3_4 * patDim; i++) {
-                for (let j = 0; j * patDim < animationWidth + patDim; j += 3) {
-                    ctx.putImageData(rowData, j * patDim, i * patternHeight);
-                }
-            }
-        };
-
-        fn(false);
-        ctx.translate(animationStep * patDim, height);
-        fn(true);
-        ctx.translate(animationStep * -1 * patDim, -height);
-        tile();
-
-        ctx.restore();
-    }
-
-    // screenshot of current canvas state, unchanged from original saveImage()
-    function saveImage() {
-        const link = document.createElement('a');
-        link.href = canvas.toDataURL();
-        const date = new Date();
-        link.download = `kaleidoscope_${date.toLocaleDateString()}_${date.toLocaleTimeString()}.png`;
-        link.click();
-    }
-
-    return {
-        init,
-        setCanvasSize,
-        setNumTiles,
-        setSpeed,
-        getMaxImageWidth,
-        renderFrame,
-        saveImage
-    };
-})();
+        // The original algorithm never cleared between frames — it could
+        // rely on every pixel in the pattern-fill region being fully
+        // opaque every frame (photos have no alpha), so each frame's
+        // fill()/tile() fully overwrote the last. Our Source Canvas can
+        // now be partially transparent (Stage 2's artwork mask), so
+        // without this clear, transparent regions of the pattern would
+        // leave old opaque pixels showing underneath forever — the
+        // canvas would visually "fill in" solid and the mirrored
+        // structure would stop being distinguishable from a flat
+        // masked color field. Clearing
