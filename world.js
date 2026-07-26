@@ -29,10 +29,19 @@ const World = (function () {
         'chroma-pulse',
         'chroma-aurora',
         'chroma-hypershift',
+        'chroma-breathing',
         'rainbow-wave',
         'spiral-rainbow',
-        'cascading-rainbow'
+        'cascading-rainbow',
+        'logi-lightsync',
+        'msi-mystic',
+        'nzxt-cam',
+        'breath-spectrum'
     ];
+
+    // state for chroma-breathing's hue-shift-on-exhale behavior
+    let currentBreathHue = 135;
+    let prevBreathCycle = -1;
 
     let activeRGB = 'chroma-spectrum';
     let isMasterAllMode = false;
@@ -146,22 +155,17 @@ const World = (function () {
                 c.fillStyle = gradC; c.fillRect(0, 0, width, height);
                 break;
             }
-        }
-    }
 
-    function render(ctx, width, height) {
-        drawRGBBase(activeRGB, ctx, width, height);
-    }
+            case 'chroma-breathing': {
+                const breathVal = Math.sin(time * 2);
+                const bLum = Math.max(0, breathVal);
+                const breathCycleIndex = Math.floor(time * 2 / (Math.PI * 2));
 
-    return {
-        update,
-        render,
-        setActiveRGB,
-        toggleMasterMode,
-        disableMasterMode,
-        rgbList,
-        get activeRGB() { return activeRGB; },
-        get isMasterAllMode() { return isMasterAllMode; },
-        get masterModeType() { return masterModeType; }
-    };
-})();
+                if (breathCycleIndex !== prevBreathCycle && breathVal < -0.95) {
+                    currentBreathHue = (currentBreathHue + 75 + Math.floor(Math.random() * 120)) % 360;
+                    prevBreathCycle = breathCycleIndex;
+                }
+
+                const bGrad = c.createRadialGradient(width / 2, height / 2, 10, width / 2, height / 2, Math.max(width, height) * 0.7);
+                bGrad.addColorStop(0, `hsla(${currentBreathHue}, 100%, ${65 * bLum}%, 1)`);
+                bGrad.addColorStop(1, `hsla(${currentBreathHue}, 100%, ${10 * bLum}%, 1)`);
