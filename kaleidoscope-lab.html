@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anima Art Lab — Kaleidoscope</title>
+    <link rel="stylesheet" href="lab/lab.css">
+</head>
+<body class="anima-lab">
+
+    <!-- Output canvas (own id: avoids the legacy #animation fixed-layout rules) -->
+    <canvas id="labCanvas" aria-label="Kaleidoscope artwork"></canvas>
+    <div id="busy" class="busy" role="status" aria-live="polite">Painting…</div>
+    <div id="emptyMsg" class="empty">Import two or more pictures to build a kaleidoscope from your own images.<br><small>Native Art needs no uploads.</small></div>
+    <div id="stats" class="stats"></div>
+
+    <button id="hideBtn" class="fab" type="button" title="Show / hide controls (H)" aria-label="Show or hide controls">☰</button>
+
+    <!-- First fold: full-viewport artwork only, no obstruction -->
+    <div class="first-fold" aria-hidden="true"></div>
+
+    <aside id="panel" class="panel" aria-label="Art Lab controls">
+        <header>
+            <h1>Anima Art Lab</h1>
+            <div id="engineTabs" class="tabs" role="tablist" aria-label="Art source">
+                <button type="button" role="tab" data-ws="native" aria-selected="true">Native Art</button>
+                <button type="button" role="tab" data-ws="images" aria-selected="false">My Images</button>
+            </div>
+        </header>
+
+        <section class="ws ws-native">
+            <details class="sec-group" data-sec="native-preset" open>
+                <summary class="sec-header">Preset</summary>
+                <div class="sec-content">
+                    <div id="presetSelect" class="cards" role="radiogroup" aria-label="Native art preset"></div>
+                    <label class="row" style="margin-top: 8px;"><span>Artistic detail</span>
+                        <select id="detail" aria-label="Artistic detail"><option value="0">Simple</option><option value="1" selected>Ornate</option></select></label>
+                    <button id="variation" type="button" class="btn" style="margin-top: 6px;">New variation</button>
+                </div>
+            </details>
+        </section>
+
+        <section class="ws ws-images">
+            <details class="sec-group" data-sec="pictures" open>
+                <summary class="sec-header">Pictures</summary>
+                <div class="sec-content">
+                    <label class="btn file">Import pictures…<input id="fileInput" type="file" accept="image/*" multiple hidden></label>
+                    <p class="hint">Or drop image files on the window. PNG transparency and original colors are preserved.</p>
+                    <div id="assetList" class="assets"></div>
+                    <p id="note" class="hint" role="status"></p>
+                </div>
+            </details>
+
+            <details class="sec-group" data-sec="saved-images" open>
+                <summary class="sec-header">My Saved Images</summary>
+                <div class="sec-content">
+                    <div class="row">
+                        <select id="savedImageSelect" class="preset-dropdown" aria-label="Select saved image">
+                            <option value="">— Select Saved Image —</option>
+                        </select>
+                    </div>
+                    <div class="row btn-row">
+                        <button id="useImageSelectedLayerBtn" type="button" class="btn" title="Use in selected layer" disabled>Use in Layer</button>
+                        <button id="addImageAsLayerBtn" type="button" class="btn" title="Add as new layer" disabled>Add as Layer</button>
+                    </div>
+                    <div class="row btn-row preset-actions" id="savedImageActionsRow" style="display: none;">
+                        <button id="renameSavedImageBtn" type="button" class="btn" title="Rename saved image">Rename</button>
+                        <button id="downloadSavedImageBtn" type="button" class="btn" title="Download image file">Download</button>
+                        <button id="removeSavedImageBtn" type="button" class="btn danger" title="Remove from library">Remove</button>
+                    </div>
+                    <p id="savedImageStatus" class="hint" role="status"></p>
+                </div>
+            </details>
+
+            <details class="sec-group" data-sec="presets" open>
+                <summary class="sec-header">My Presets</summary>
+                <div class="sec-content">
+                    <div class="row">
+                        <select id="userPresetSelect" class="preset-dropdown" aria-label="Select saved preset">
+                            <option value="">— Select Saved Preset —</option>
+                        </select>
+                    </div>
+                    <div class="row btn-row">
+                        <button id="savePresetBtn" type="button" class="btn" title="Save current settings as a new preset">Save Preset</button>
+                        <button id="loadPresetBtn" type="button" class="btn" title="Load selected preset" disabled>Load Preset</button>
+                    </div>
+                    <div class="row btn-row" style="margin-top: 6px;">
+                        <button id="continueInFusionBtn" type="button" class="btn btn-fusion" title="Continue current animation in Anima Fusion (with or without saving)">Continue in Fusion 🔀</button>
+                    </div>
+                    <div class="row btn-row preset-actions" id="presetActionsRow" style="display: none;">
+                        <button id="updatePresetBtn" type="button" class="btn" title="Overwrite selected preset with current settings">Update</button>
+                        <button id="renamePresetBtn" type="button" class="btn" title="Rename selected preset">Rename</button>
+                        <button id="deletePresetBtn" type="button" class="btn danger" title="Delete selected preset">Delete</button>
+                    </div>
+                    <p id="presetStatus" class="hint" role="status"></p>
+
+                    <div class="row btn-row backup-row" style="margin-top: 10px;">
+                        <button id="exportBackupBtn" type="button" class="btn" title="Export complete backup of all presets and saved images">Export Backup</button>
+                        <label class="btn file" title="Import backup JSON" style="margin: 0; text-align: center;">Import Backup…<input id="importBackupInput" type="file" accept=".json,application/json" hidden></label>
+                    </div>
+                </div>
+            </details>
+        </section>
+
+        <section>
+            <details class="sec-group" data-sec="scene" open>
+                <summary class="sec-header">Scene</summary>
+                <div class="sec-content">
+                    <div class="row"><button id="playBtn" type="button" class="btn" aria-pressed="false">❚❚ Pause</button>
+                        <button id="shot" type="button" class="btn">Screenshot</button></div>
+                    <label class="row"><span>Motion</span><input id="motionMul" type="range" min="0" max="3" step="0.01" value="1.00"><output id="motionVal">1.00x</output></label>
+                    <label class="row"><span>Folds</span><input id="sceneFolds" type="range" min="2" max="24" step="1" value="8"><output id="foldsVal">8</output></label>
+                    <label class="row"><span>Light</span><select id="lightPreset" aria-label="Light preset"></select></label>
+                    <label class="row"><span>Light speed</span><input id="lightSpeed" type="range" min="0" max="3" step="0.05" value="0.5"><output id="lightVal">0.50</output></label>
+                    <label class="row"><span>Quality</span><select id="quality" aria-label="Quality"><option value="auto">Auto</option><option value="low">Low</option><option value="high">High</option></select></label>
+                </div>
+            </details>
+        </section>
+
+        <section>
+            <details class="sec-group" data-sec="layers" open>
+                <summary class="sec-header">Layers</summary>
+                <div class="sec-content">
+                    <div id="layerList" class="layers" role="listbox" aria-label="Layers"></div>
+                </div>
+            </details>
+
+            <details class="sec-group" data-sec="inspector" open>
+                <summary class="sec-header">Layer Inspector</summary>
+                <div class="sec-content">
+                    <div id="inspector" class="inspector"></div>
+                </div>
+            </details>
+        </section>
+        <footer><small>H hide · Space play/pause · [ ] select layer · D stats</small></footer>
+    </aside>
+
+    <script src="world.js"></script>
+    <script src="lab/presets.js"></script>
+    <script src="lab/native-art.js"></script>
+    <script src="lab/bundled-images.js"></script>
+    <script src="lab/image-art.js"></script>
+    <script src="lab/image-presets.js"></script>
+    <script src="lab/optics.js"></script>
+    <script src="lab/compositor.js"></script>
+    <script src="lab/main.js"></script>
+    <script src="lab/export/offline-renderer.js"></script>
+</body>
+</html>

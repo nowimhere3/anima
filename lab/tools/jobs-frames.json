@@ -1,0 +1,9 @@
+[
+ {"name":"cathedral-t45","url":"kaleidoscope-lab.html?preset=cathedral&ui=0&still=1&t=45"},
+ {"name":"cathedral-t180","url":"kaleidoscope-lab.html?preset=cathedral&ui=0&still=1&t=180"},
+ {"name":"rose-t45","url":"kaleidoscope-lab.html?preset=rose&ui=0&still=1&t=45"},
+ {"name":"rose-t180","url":"kaleidoscope-lab.html?preset=rose&ui=0&still=1&t=180"},
+ {"name":"lotus-t45","url":"kaleidoscope-lab.html?preset=lotus&ui=0&still=1&t=45"},
+ {"name":"lotus-t180","url":"kaleidoscope-lab.html?preset=lotus&ui=0&still=1&t=180"},
+ {"name":"rose-t0","url":"kaleidoscope-lab.html?preset=rose&ui=0&still=1"}
+]

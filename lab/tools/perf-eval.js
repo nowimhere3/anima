@@ -1,0 +1,9 @@
+(async (DUR) => {
+  AnimaLab.setPlaying(true);
+  const iv = []; let last = 0; const t0 = performance.now();
+  await new Promise(res => { function f(ts) { if (last) iv.push(ts - last); last = ts; if (performance.now() - t0 < DUR) requestAnimationFrame(f); else res(); } requestAnimationFrame(f); });
+  const q = a => { const s = a.slice().sort((x, y) => x - y); return { p50: +s[Math.floor(s.length * .5)].toFixed(2), p95: +s[Math.floor(s.length * .95)].toFixed(2), max: +s[s.length - 1].toFixed(2) }; };
+  const st = AnimaLab.state.stats;
+  const s = AnimaLab.scene;
+  return JSON.stringify({ preset: s.id, secs: DUR / 1000, frames: iv.length, fps: +(iv.length / (DUR / 1000)).toFixed(1), interval_ms: q(iv), work_ms_last300: q(st.work), canvas: [AnimaLab.state.W, AnimaLab.state.H, +(document.getElementById('labCanvas').width / AnimaLab.state.W).toFixed(2)], appMiB: +(s.layers.reduce((a, r) => a + (r.bytes || 0), 0) / 1048576).toFixed(1), jsHeapMiB: performance.memory ? +(performance.memory.usedJSHeapSize / 1048576).toFixed(1) : null });
+})(30000)

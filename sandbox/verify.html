@@ -1,0 +1,70 @@
+<!doctype html><meta charset="utf-8"><title>Sandbox verification</title><pre id="results">RUNNING</pre>
+<iframe id="app" src="../sandbox.html" style="width:400px;height:300px"></iframe>
+<script>
+const results = document.getElementById('results');
+const checks = [];
+function check(name, pass) { checks.push((pass ? 'PASS ' : 'FAIL ') + name); if (!pass) throw new Error(name); }
+window.addEventListener('error', e => { results.textContent = checks.join('\n') + '\nERROR ' + e.message; });
+document.getElementById('app').addEventListener('load', () => {
+  try {
+    const frame = document.getElementById('app').contentWindow;
+    const d = frame.document;
+    const optics = frame.eval('OpticalEngine'), mask = frame.eval('Mask');
+    check('sandbox loads controls', ['symmetryMode','radialFolds','ringCount','luminanceMask'].every(id => d.getElementById(id)));
+    const select = d.getElementById('symmetryMode');
+    select.value = 'rings'; select.dispatchEvent(new frame.Event('change'));
+    check('mode controls enabled appropriately', d.getElementById('radialFolds').disabled && !d.getElementById('ringCount').disabled);
+    select.value = 'kaleido-rings'; select.dispatchEvent(new frame.Event('change'));
+    check('hybrid enables both controls', !d.getElementById('radialFolds').disabled && !d.getElementById('ringCount').disabled);
+    const art = d.createElement('canvas'); art.width = 3; art.height = 1;
+    const ac = art.getContext('2d'); ac.fillStyle = 'black'; ac.fillRect(0,0,1,1); ac.fillStyle = 'white'; ac.fillRect(1,0,1,1); ac.fillStyle = 'rgba(255,0,0,.5)'; ac.fillRect(2,0,1,1);
+    const world = d.createElement('canvas'); world.width=3; world.height=1; world.getContext('2d').fillRect(0,0,3,1);
+    mask.setArtwork(art); mask.setLuminanceEnabled(true);
+    let px = mask.render(world,3,1).getContext('2d').getImageData(0,0,3,1).data;
+    check('luminance black transparent, white opaque, red translucent', px[3]===0 && px[7]===255 && px[11]>=25 && px[11]<=29);
+    mask.setLuminanceEnabled(false); px=mask.render(world,3,1).getContext('2d').getImageData(0,0,3,1).data;
+    check('toggle restores original alpha', px[3]===255 && px[7]===255 && px[11]>=126 && px[11]<=129);
+    mask.clearArtwork(); px=mask.render(world,3,1).getContext('2d').getImageData(0,0,3,1).data;
+    check('no artwork passes World through', px[3]===255 && px[11]===255);
+    const source=d.createElement('canvas'); source.width=64; source.height=64;
+    const s=source.getContext('2d'); s.fillStyle='red'; s.fillRect(0,0,64,64); s.fillStyle='blue'; s.fillRect(0,0,25,32); s.fillStyle='white'; s.fillRect(40,30,8,20);
+    const flip=d.createElement('canvas'); flip.width=64; flip.height=64; const f=flip.getContext('2d'); f.translate(64,0); f.scale(-1,1); f.drawImage(source,0,0);
+    const out=d.createElement('canvas'); optics.init(out); optics.setCanvasSize(180,120); optics.setSpeed(1);
+    const pixels=()=>Array.from(out.getContext('2d').getImageData(0,0,180,120).data);
+    for (const mode of ['classic','radial','rings','kaleido-rings']) {
+      optics.setSymmetryMode(mode); optics.renderFrame(source,flip,0); const before=pixels();
+      check(mode+' renders non-empty', before.some((v,i)=>i%4===3 && v>0));
+      for(let i=0;i<30;i++) optics.renderFrame(source,flip,.05);
+      const after=pixels(); check(mode+' animates', after.some((v,i)=>v!==before[i]));
+      optics.setSpeed(0); optics.renderFrame(source,flip,.05); const frozen=pixels(); optics.renderFrame(source,flip,.05); const frozen2=pixels();
+      check(mode+' speed zero freezes', frozen.every((v,i)=>v===frozen2[i])); optics.setSpeed(1);
+    }
+    optics.setSymmetryMode('radial'); optics.setRadialFolds(6); optics.setSpeed(0); optics.renderFrame(source,flip,0);
+    const radialPixels=pixels(), alpha=Math.PI/6;
+    const pixelAt=(x,y)=>radialPixels.slice((Math.round(y)*180+Math.round(x))*4,(Math.round(y)*180+Math.round(x))*4+4);
+    let reflected=true;
+    for (const r of [20,30,40]) {
+      const a=.17, p1=pixelAt(90+r*Math.cos(a),60+r*Math.sin(a)), p2=pixelAt(90+r*Math.cos(2*alpha-a),60+r*Math.sin(2*alpha-a));
+      if (p1.some((v,i)=>Math.abs(v-p2[i])>35)) reflected=false;
+    }
+    check('radial wedges reflect sampled points', reflected);
+    const tiny=d.createElement('canvas'); tiny.width=20; tiny.height=20; tiny.getContext('2d').drawImage(source,0,0,20,20);
+    const tinyFlip=d.createElement('canvas'); tinyFlip.width=20; tinyFlip.height=20; tinyFlip.getContext('2d').drawImage(tiny,0,0);
+    optics.setSymmetryMode('classic'); optics.renderFrame(tiny,tinyFlip,0); const classic=pixels();
+    let repeated=true; for (let y=0;y<120;y++) for(let x=0;x<120;x++) for(let c=0;c<4;c++) if(classic[(y*180+x)*4+c]!==classic[(y*180+x+60)*4+c]) repeated=false;
+    check('classic detached cell repeats across width', repeated);
+    optics.setSymmetryMode('rings'); optics.setRingCount(6); optics.setSpeed(1);
+    const oc=out.getContext('2d'), rotate=oc.rotate, angles=[];
+    oc.rotate=function(value) { angles.push(value); return rotate.call(this,value); };
+    optics.renderFrame(source,flip,.05); oc.rotate=rotate;
+    check('adjacent rings counter-rotate', angles.length===6 && angles[0]>0 && angles[1]<0);
+    const empty=d.createElement('canvas'); empty.width=64; empty.height=64;
+    for (const mode of ['classic','radial','rings','kaleido-rings']) {
+      optics.setSymmetryMode(mode); optics.renderFrame(empty,empty,0);
+      check(mode+' clears transparent frames', pixels().every((v,i)=>i%4!==3 || v===0));
+    }
+    check('sandbox uses isolated artwork database', d.querySelector('script[src="sandbox/library.js"]') !== null);
+    results.textContent=checks.join('\n')+'\nALL PASSED';
+  } catch(e) { results.textContent=checks.join('\n')+'\nERROR '+e.stack; }
+});
+</script>

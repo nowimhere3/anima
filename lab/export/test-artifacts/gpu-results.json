@@ -1,0 +1,82 @@
+{
+  "done": true,
+  "pass": false,
+  "checks": [
+    {
+      "name": "300 frames cover [0,10), last sample 299/30",
+      "pass": true
+    },
+    {
+      "name": "POC generated independently in less than 10 seconds",
+      "pass": true,
+      "detail": {
+        "proofMs": 659.2999999523163
+      }
+    },
+    {
+      "name": "Frame zero matches current artwork within GPU raster tolerance",
+      "pass": true,
+      "detail": {
+        "live0": "a9a9800aa8c290c12f428575a5803f4fd35e0512e47b270e5e836273670df4e4",
+        "frame0": "a9a9800aa8c290c12f428575a5803f4fd35e0512e47b270e5e836273670df4e4",
+        "changes": 0,
+        "max": 0,
+        "liveSize": [
+          1920,
+          1080
+        ],
+        "sceneSize": [
+          1920,
+          1080,
+          1
+        ],
+        "exportSize": [
+          1920,
+          1080
+        ]
+      }
+    },
+    {
+      "name": "Frame zero preserves captured runtime phases",
+      "pass": true
+    },
+    {
+      "name": "Artwork actually changes at virtual timestamps",
+      "pass": true
+    },
+    {
+      "name": "Live paused scene and World were not mutated",
+      "pass": true
+    },
+    {
+      "name": "Export did not replace editor Math.random",
+      "pass": true
+    },
+    {
+      "name": "Clean canvas excludes conspicuous DOM overlay",
+      "pass": true
+    },
+    {
+      "name": "Full-resolution output is independent of viewport",
+      "pass": true
+    },
+    {
+      "name": "Identical snapshot/seed/sequence reproduces pixels",
+      "pass": false,
+      "detail": {
+        "frames": {
+          "0": "a9a9800aa8c290c12f428575a5803f4fd35e0512e47b270e5e836273670df4e4",
+          "150": "fc726b32915dc68f0ac93b1643a391adfb7a246f6b7745f64682220b32813797",
+          "299": "744c28d7cee849a2f98893c2ba95fe618066bd21c63eadf2bd0be27c02247c36"
+        },
+        "second": {
+          "0": "bc3656601f52ab28b5eae8d455471ea96df91be1ea1cec17a39c1882df90dfd2",
+          "150": "c2b3d8150660e51ccb42478768bb1109e08a6f0a3860e883dca928bf44b1188a",
+          "299": "744c28d7cee849a2f98893c2ba95fe618066bd21c63eadf2bd0be27c02247c36"
+        }
+      }
+    }
+  ],
+  "error": "Error: Identical snapshot/seed/sequence reproduces pixels: {\"frames\":{\"0\":\"a9a9800aa8c290c12f428575a5803f4fd35e0512e47b270e5e836273670df4e4\",\"150\":\"fc726b32915dc68f0ac93b1643a391adfb7a246f6b7745f64682220b32813797\",\"299\":\"744c28d7cee849a2f98893c2ba95fe618066bd21c63eadf2bd0be27c02247c36\"},\"second\":{\"0\":\"bc3656601f52ab28b5eae8d455471ea96df91be1ea1cec17a39c1882df90dfd2\",\"150\":\"c2b3d8150660e51ccb42478768bb1109e08a6f0a3860e883dca928bf44b1188a\",\"299\":\"744c28d7cee849a2f98893c2ba95fe618066bd21c63eadf2bd0be27c02247c36\"}}\n    at check (file:///C:/Users/dmcal/Documents/GitHub/anima-main/anima-main/lab/export/test-cases.js:11:27)\n    at file:///C:/Users/dmcal/Documents/GitHub/anima-main/anima-main/lab/export/test-cases.js:68:9",
+  "benchmarks": []
+}

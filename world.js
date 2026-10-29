@@ -47,6 +47,20 @@ const World = (function () {
     let isMasterAllMode = false;
     let masterModeType = null; // 'smooth' | 'chaos'
     let time = 0;
+    // Real-time behavior keeps Math.random; only an export document supplies a PRNG.
+    let randomSource = () => Math.random();
+    function getState() {
+        return { time, currentBreathHue, prevBreathCycle, activeRGB, isMasterAllMode, masterModeType };
+    }
+    function restoreState(s) {
+        if (!s || ![s.time, s.currentBreathHue, s.prevBreathCycle].every(Number.isFinite) || !rgbList.includes(s.activeRGB)) throw new Error('Invalid World snapshot');
+        time = s.time; currentBreathHue = s.currentBreathHue; prevBreathCycle = s.prevBreathCycle;
+        activeRGB = s.activeRGB; isMasterAllMode = !!s.isMasterAllMode; masterModeType = s.masterModeType;
+    }
+    function setRandomSource(fn) {
+        if (typeof fn !== 'function') throw new Error('Random source must be a function');
+        randomSource = fn;
+    }
 
     function setActiveRGB(id) {
         if (rgbList.includes(id)) {
@@ -162,7 +176,7 @@ const World = (function () {
                 const breathCycleIndex = Math.floor(time * 2 / (Math.PI * 2));
 
                 if (breathCycleIndex !== prevBreathCycle && breathVal < -0.95) {
-                    currentBreathHue = (currentBreathHue + 75 + Math.floor(Math.random() * 120)) % 360;
+                    currentBreathHue = (currentBreathHue + 75 + Math.floor(randomSource() * 120)) % 360;
                     prevBreathCycle = breathCycleIndex;
                 }
 
@@ -219,6 +233,7 @@ const World = (function () {
     }
 
     return {
+        getState, restoreState, setRandomSource,
         update,
         render,
         setActiveRGB,

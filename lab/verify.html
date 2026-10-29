@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Anima Art Lab — verification harness</title>
+<style>body{font:13px monospace;background:#111;color:#ddd;padding:12px}.pass{color:#7f7}.fail{color:#f77}</style>
+</head>
+<body>
+<h3>Anima Art Lab — verification (synthetic in-memory fixtures only)</h3>
+<pre id="out">running…</pre>
+<script src="../world.js"></script>
+<script src="presets.js"></script>
+<script src="native-art.js"></script>
+<script src="bundled-images.js"></script>
+<script src="image-art.js"></script>
+<script src="image-presets.js"></script>
+<script src="optics.js"></script>
+<script src="compositor.js"></script>
+<script>
+"use strict";
+const C = LabCompositor, results = [];
+function check(name, ok, detail) { results.push({ name, ok: !!ok, detail: detail || '' }); }
+function cv(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+function px(c, x, y) { return Array.from(c.getContext('2d').getImageData(x | 0, y | 0, 1, 1).data); }
+function blob(c) { return new Promise(r => c.toBlob(b => r(new File([b], 'fixture.png', { type: 'image/png' })), 'image/png')); }
+const near = (a, b, t) => Math.abs(a - b) <= t;
+
+/* ---- T1: genuine mirrored radial symmetry, N = 2/6/10/24 ---- */
+function wedgeSource(N, S) {
+    const al = Math.PI / N, c = cv(S, S), x = c.getContext('2d'); x.translate(S / 2, S / 2);
+    const R = S * .7;
+    for (const [a0, a1, col] of [[-al * .3, al * 1.3, '#0000ff'], [-al * .3, al / 2, '#ff0000']]) {
+        x.fillStyle = col; x.beginPath(); x.moveTo(0, 0); x.arc(0, 0, R, a0, a1); x.closePath(); x.fill();
+    }
+    return c;
+}
+function classify(p) { return p[3] < 200 ? 'none' : (p[0] > 180 && p[2] < 80) ? 'red' : (p[2] > 180 && p[0] < 80) ? 'blue' : 'other'; }
+for (const N of [2, 6, 10, 24]) {
+    const S = 480, src = wedgeSource(N, S), dst = cv(S, S);
+    LabOptics.projectRadial(dst, [src], { N, pivot: { x: S / 2, y: S / 2 } });
+    const al = Math.PI / N, r = 140, at = ang => px(dst, S / 2 + r * Math.cos(ang), S / 2 + r * Math.sin(ang));
+    // sector k, fractional position f within sector: expected colour alternates orientation for odd k
+    let ok = true, why = '';
+    for (let k = 0; k < Math.min(2 * N, 8); k++) {
+        for (const f of [.25, .75]) {
+            const got = classify(at((k + f) * al));
+            const base = (k & 1) ? 1 - f : f;                // reflected sectors read the wedge backwards
+            const want = base < .5 ? 'red' : 'blue';
+            if (got !== want) { ok = false; why += ` k${k}f${f}:${got}!=${want}`; }
+            // a pure rotation would give the un-reflected colour in odd sectors — make sure we are not that
+        }
+    }
+    const rotOnly = classify(at(1.25 * al)) === 'red';       // rotation-only would be red here
+    check(`T1 radial mirror N=${N}`, ok && !rotOnly, why);
+    // centring: centre pixel region is covered, and 2N-fold sampling at ring is fully opaque
+    let opaque = 0, total = 0;
+    for (let i = 0; i < 90; i++) { total++; if (at(i * Math.PI * 2 / 90 + .013)[3] > 250) opaque++; }
+    check(`T1 coverage N=${N} (ring fully opaque, no gaps)`, opaque === total, `${opaque}/${total}`);
+}
+
+/* ---- images: fixtures ---- */
+async function makeAsset() {
+    const f = cv(64, 64), x = f.getContext('2d');
+    x.clearRect(0, 0, 64, 64);
+    x.fillStyle = 'rgb(200,40,90)'; x.fillRect(0, 0, 32, 64);                  // left: opaque
+    x.fillStyle = 'rgba(20,200,120,0.5)'; x.fillRect(32, 0, 32, 32);          // top-right: half alpha
+    return ImageArtEngine.importFile(await blob(f));                          // bottom-right: transparent
+}
+(async function run() {
+    const a = await makeAsset();
+    const spec = { assetId: a.id, crop: { x: 0, y: 0, w: 1, h: 1 }, fit: 'cover', mirrorX: false, mirrorY: false, alphaMode: 'original', tint: null, tintStrength: 0, repeat: 'none' };
+    let p = ImageArtEngine.prepare(spec, {}), S = p.tile;
+    const L = px(p.color, S * .25, S * .5), TR = px(p.color, S * .75, S * .25), BR = px(p.color, S * .75, S * .75);
+    check('T3 image RGB preserved (opaque)', near(L[0], 200, 1) && near(L[1], 40, 1) && near(L[2], 90, 1) && L[3] === 255, JSON.stringify(L));
+    check('T3 image alpha preserved (half alpha, RGB within premult rounding)', near(TR[3], 128, 2) && near(TR[0], 20, 4) && near(TR[1], 200, 4) && near(TR[2], 120, 4), JSON.stringify(TR));
+    check('T3 transparent stays transparent', BR[3] === 0, JSON.stringify(BR));
+    p = ImageArtEngine.prepare(Object.assign({}, spec, { mirrorX: true }), {});
+    const Lm = px(p.color, S * .75, S * .5), TRm = px(p.color, S * .25, S * .25);
+    check('T3 alpha/RGB survive crop+mirror', near(Lm[0], 200, 1) && Lm[3] === 255 && near(TRm[3], 128, 2), JSON.stringify([Lm, TRm]));
+    p = ImageArtEngine.prepare(Object.assign({}, spec, { alphaMode: 'legacy-luma' }), {});
+    const lum = (.2126 * 200 + .7152 * 40 + .0722 * 90) / 255, Ll = px(p.color, S * .25, S * .5);
+    check('T3 legacy-luma applies a*luma (non-destructive)', near(Ll[3], Math.round(255 * lum), 3), `a=${Ll[3]} expect ${Math.round(255 * lum)}`);
+    p = ImageArtEngine.prepare(spec, {});
+    check('T3 luma toggle is non-destructive (original restored)', px(p.color, S * .25, S * .5)[3] === 255 && ImageArtEngine.assets.get(a.id).blob.size > 0);
+    p = ImageArtEngine.prepare(Object.assign({}, spec, { tint: '#0000ff', tintStrength: .5 }), {});
+    const Lt = px(p.color, S * .25, S * .5), Tt = px(p.color, S * .75, S * .75);
+    check('T3 tint is source-atop (tints colour, never adds coverage)', Lt[2] > 120 && Tt[3] === 0, JSON.stringify([Lt, Tt]));
+
+    /* ---- T2: alpha through light strengths 0 / .5 / 1 (half-alpha sample stays half-alpha) ---- */
+    const white = cv(8, 8); white.getContext('2d').fillStyle = '#fff'; white.getContext('2d').fillRect(0, 0, 8, 8);
+    const preset = { id: 'fx', folds: 6, detail: 0, seed: 1, palette: LabPresets.list[0].palette, metal: '#ccc', lead: '#000', leadW: .005, background: '#000', light: { preset: 'chroma-spectrum', speed: 0 }, layers: [] };
+    const alphaResults = [];
+    for (const str of [0, .5, 1]) {
+        const sc = C.createScene(preset, {}); C.layout(sc, 600, 600, 1);
+        const ispec = Object.assign({}, spec, { repeat: 'none' });
+        const rt = C.makeRuntime({ id: 'i', name: 'i', visible: true, engine: 'image', z: 0, proj: 'identity', folds: null, extent: .8, clip: null, opacity: 1, blend: 'source-over', dir: 'still', speed: 0, frozen: false, scale: 1, x: 0, y: 0, light: { mode: 'light', strength: str }, pulse: { amount: 0, period: 20 }, orbit: { rx: 0, ry: 0, period: 90 }, sampleSpin: 0, params: {}, image: Object.assign({}, ispec, { zoom: 1, panX: 0, panY: 0, tileR: 1.6, rot: 0 }) });
+        sc.layers.push(rt); C.ensureLayer(sc, rt, { lightCanvas: white, lightRev: 1 });
+        const W2 = rt.proj.width, pL = px(rt.proj, W2 * .25, W2 * .5), pH = px(rt.proj, W2 * .75, W2 * .25), pT = px(rt.proj, W2 * .75, W2 * .75);
+        const sample = pH, half = pH[3], zero = pT[3], bad = 0;
+        alphaResults.push({ str, pL, pH, pT });
+        const alphaOk = near(pH[3], 128, 2) && pT[3] === 0 && pL[3] === 255;
+        check(`T2 alpha preserved at light strength ${str} (opaque 255, half 128, transparent 0 before final opacity)`, alphaOk, JSON.stringify({ pL, pH, pT }));
+        if (str === 1) check('T2 full-strength light replaces RGB with the light field', sample && sample[0] > 240 && sample[1] > 240, JSON.stringify(sample));
+        if (str === 0) check('T2 strength 0 keeps intrinsic colour', sample && near(sample[0], 20, 6) && near(sample[1], 200, 6), JSON.stringify(sample));
+    }
+
+    /* ---- T2b: Backlight mode ---- */
+    for (const str of [0, .5, 1]) {
+        const sc = C.createScene(preset, {}); C.layout(sc, 600, 600, 1);
+        const ispec = Object.assign({}, spec, { repeat: 'none' });
+        const rt = C.makeRuntime({ id: 'ib', name: 'ib', visible: true, engine: 'image', z: 0, proj: 'identity', folds: null, extent: .8, clip: null, opacity: 1, blend: 'source-over', dir: 'still', speed: 0, frozen: false, scale: 1, x: 0, y: 0, light: { mode: 'backlight', strength: str }, pulse: { amount: 0, period: 20 }, orbit: { rx: 0, ry: 0, period: 90 }, sampleSpin: 0, params: {}, image: Object.assign({}, ispec, { zoom: 1, panX: 0, panY: 0, tileR: 1.6, rot: 0 }) });
+        sc.layers.push(rt); C.ensureLayer(sc, rt, { lightCanvas: white, lightRev: 1 });
+        const W2 = rt.proj.width, pL = px(rt.proj, W2 * .25, W2 * .5), pH = px(rt.proj, W2 * .75, W2 * .25), pT = px(rt.proj, W2 * .75, W2 * .75);
+        if (str === 0) {
+            check('T2b backlight strength 0 produces no backlight (transparent stays 0)', pT[3] === 0, `alpha=${pT[3]}`);
+            check('T2b backlight strength 0 preserves opaque artwork RGB', near(pL[0], 200, 2) && near(pL[1], 40, 2) && near(pL[2], 90, 2) && pL[3] === 255, JSON.stringify(pL));
+        } else if (str === 1) {
+            check('T2b backlight strength 1 reveals full light in transparent region (alpha 255, white)', pT[3] === 255 && pT[0] > 240 && pT[1] > 240 && pT[2] > 240, JSON.stringify(pT));
+            check('T2b backlight strength 1 preserves opaque artwork in front', near(pL[0], 200, 2) && near(pL[1], 40, 2) && near(pL[2], 90, 2) && pL[3] === 255, JSON.stringify(pL));
+            check('T2b backlight strength 1 blends half-alpha region with light', pH[3] === 255 && pH[0] > 100, JSON.stringify(pH));
+        } else if (str === 0.5) {
+            check('T2b backlight strength 0.5 gives half light in transparent region (alpha ~128)', near(pT[3], 128, 4), `alpha=${pT[3]}`);
+            check('T2b backlight strength 0.5 preserves opaque artwork in front', near(pL[0], 200, 2) && pL[3] === 255, JSON.stringify(pL));
+        }
+    }
+
+    /* ---- T4/T5/T6: layer independence, continuity, time invariance, caches ---- */
+    const preCount = { prepare: 0, readback: 0 };
+    const op = NativeArtEngine.prepare; NativeArtEngine.prepare = function () { preCount.prepare++; return op.apply(this, arguments); };
+    const gi = CanvasRenderingContext2D.prototype.getImageData;
+    CanvasRenderingContext2D.prototype.getImageData = function () { preCount.readback++; return gi.apply(this, arguments); };
+
+    const cath = LabPresets.byId('cathedral');
+    const sc = C.createScene(cath, {}); C.layout(sc, 960, 540, 1);
+    const frameObj = { lightCanvas: white, lightRev: 1 };
+    C.prepareScene(sc, frameObj);
+    const by = id => sc.layers.find(r => r.spec.id === id);
+    const prepared = preCount.prepare;
+    check('T6 every native layer built exactly once', prepared === sc.layers.length, `${prepared} builds for ${sc.layers.length} layers`);
+    const ctx = cv(960, 540).getContext('2d');
+    // 10 s of frames: no readbacks, no rebuilds
+    preCount.readback = 0; const before = preCount.prepare;
+    for (let i = 0; i < 600; i++) { C.advanceScene(sc, 1 / 60); C.prepareScene(sc, frameObj); C.renderScene(sc, ctx, frameObj); }
+    check('T6 no pixel readback during animation', preCount.readback === 0, `getImageData calls=${preCount.readback}`);
+    check('T6 rotation-only frames rebuild nothing', preCount.prepare === before, `rebuilds=${preCount.prepare - before}`);
+    const th = Object.fromEntries(sc.layers.map(r => [r.spec.id, r.st.theta]));
+    check('T4 layers counter-rotate independently', th.lancets > 0 && th.inner < 0 && th.collar > 0 && th.border < 0 && th.rosette === 0 && th.bed === 0, JSON.stringify(th));
+    check('T4 cw/ccw layers rotate at their own design rates (deg/s * time)', near(th.lancets, .24 * Math.PI / 180 * 10, 1e-6) && near(th.inner, -.17 * Math.PI / 180 * 10, 1e-6) && near(th.collar, .43 * Math.PI / 180 * 10, 1e-6), JSON.stringify(th));
+    // continuity on speed / direction edits
+    const t0 = by('lancets').st.theta, others0 = ['inner', 'collar', 'border', 'rosette', 'bed'].map(i => by(i).st.theta);
+    const keysBefore = sc.layers.map(r => r.srcKey + '|' + r.projKey);
+    by('lancets').spec.speed = 2.0; C.advanceScene(sc, 0.1);
+    const exp = t0 + 2.0 * Math.PI / 180 * 0.1 * sc.motionMultiplier;
+    check('T4 speed change preserves phase (no elapsed*speed jump)', near(by('lancets').st.theta, exp, 1e-9), `${by('lancets').st.theta} vs ${exp}`);
+    const t1 = by('lancets').st.theta; by('lancets').spec.dir = 'ccw'; C.advanceScene(sc, 0.1);
+    check('T4 direction flip continues from current angle', near(by('lancets').st.theta, t1 - 2.0 * Math.PI / 180 * 0.1, 1e-9));
+    const others1 = ['inner', 'collar', 'border', 'rosette', 'bed'].map(i => by(i).st.theta);
+    check('T4 editing one layer leaves others on their own schedule', others1.every((v, i) => near(v, others0[i] + (['inner', 'collar', 'border', 'rosette', 'bed'][i] === 'inner' ? -0.17 : ['collar'].includes(['inner', 'collar', 'border', 'rosette', 'bed'][i]) ? 0.43 : ['border'].includes(['inner', 'collar', 'border', 'rosette', 'bed'][i]) ? -0.12 : 0) * Math.PI / 180 * 0.2 * sc.motionMultiplier, 1e-9) || near(v, others0[i], 1e-9)), JSON.stringify({ others0, others1 }));
+    by('collar').spec.frozen = true; const cth = by('collar').st.theta; C.advanceScene(sc, 5);
+    check('T4 Freeze layer stops that layer only', by('collar').st.theta === cth && by('border').st.theta !== others1[2]);
+    by('collar').spec.frozen = false;
+    // time-step invariance
+    function simulate(dt, secs) { const s = C.createScene(cath, {}); const n = Math.round(secs / dt); for (let i = 0; i < n; i++) C.advanceScene(s, dt); return s.layers.map(r => r.st.theta); }
+    const a30 = simulate(1 / 30, 60), a60 = simulate(1 / 60, 60), a120 = simulate(1 / 120, 60);
+    check('T6 30/60/120 Hz simulations agree (elapsed-time based)', a30.every((v, i) => near(v, a60[i], 1e-9) && near(v, a120[i], 1e-9)), JSON.stringify([a30[1], a60[1], a120[1]]));
+    // pause
+    const sp = C.createScene(cath, {}); sp.playing = false; C.advanceScene(sp, 5);
+    check('T6 pause freezes every layer', sp.layers.every(r => r.st.theta === 0));
+    // pose-only edits do not invalidate caches; source edits invalidate only that layer
+    const L2 = by('lancets'), projCanvas = L2.proj, pk = L2.projKey, bs = preCount.prepare;
+    L2.spec.opacity = .5; L2.spec.x = .02; L2.spec.scale = 1.05; L2.spec.blend = 'screen'; L2.spec.dir = 'cw'; L2.spec.speed = .5;
+    C.prepareScene(sc, frameObj);
+    check('T6 pose/opacity/blend/speed edits keep projection + source cache', L2.proj === projCanvas && L2.projKey === pk && preCount.prepare === bs);
+    const keysB = sc.layers.map(r => r.projKey), canv = sc.layers.map(r => r.proj);
+    L2.spec.light = { mode: 'light', strength: .6 }; C.prepareScene(sc, frameObj);
+    const changed = sc.layers.filter((r, i) => r.projKey !== keysB[i]).map(r => r.spec.id);
+    check('T4/T6 changing one layer\'s light invalidates only that layer', changed.length === 1 && changed[0] === 'lancets', changed.join(','));
+    frameObj.lightRev++; C.prepareScene(sc, frameObj);
+    const unchangedAfterLight = sc.layers.filter((r, i) => r.proj === canv[i]).length;
+    check('T6 light refresh reprojects only light layers', sc.layers.filter(r => r.projKey !== keysB[sc.layers.indexOf(r)]).map(r => r.spec.id).join() === 'lancets');
+    sc.folds = 12; const b2 = preCount.prepare; C.prepareScene(sc, frameObj);
+    check('T6 fold change rebuilds fold-dependent native layers (every inheriting layer)', preCount.prepare - b2 === sc.layers.length, `rebuilt ${preCount.prepare - b2}`);
+    check('T6 memory accounting reports bytes', C.memoryBytes(sc) > 1e6, (C.memoryBytes(sc) / 1048576).toFixed(1) + ' MiB');
+
+    /* ---- T8: ImagePresets IndexedDB persistence and configuration restoration ---- */
+    const testScene = {
+        folds: 10,
+        motionMultiplier: 3.5,
+        light: { preset: 'chroma-aurora', speed: 1.25 },
+        layers: [
+            C.makeRuntime({
+                id: 'layer1', name: 'Layer 1', visible: true, engine: 'image', z: 0, proj: 'radial', folds: 10,
+                extent: 'full', clip: null, opacity: 0.92, blend: 'screen', dir: 'cw', speed: 1.5, frozen: false,
+                scale: 1.1, x: 0.05, y: -0.02, light: { mode: 'backlight', strength: 0.85 },
+                pulse: { amount: 0.03, period: 25 }, orbit: { rx: 0.02, ry: 0.01, period: 60 }, sampleSpin: 0.5, params: {},
+                image: { assetId: a.id, crop: { x: 0.1, y: 0.1, w: 0.8, h: 0.8 }, fit: 'contain', mirrorX: true, mirrorY: false, alphaMode: 'original', tint: '#ffaacc', tintStrength: 0.4, repeat: 'mirror-repeat', zoom: 1.2, panX: 0.1, panY: -0.1, tileR: 1.8, rot: 45 }
+            })
+        ]
+    };
+
+    // 1. Save Preset 1
+    const pRecord1 = await ImagePresets.savePreset('Test Preset One', testScene);
+    check('T8 savePreset returns saved record with id and name', pRecord1 && pRecord1.id && pRecord1.name === 'Test Preset One', JSON.stringify(pRecord1));
+    check('T8 savePreset stores asset in assetIds', pRecord1.assetIds && pRecord1.assetIds.length === 1, JSON.stringify(pRecord1.assetIds));
+
+    // 2. Save Preset 2 using the same asset (deduplication check)
+    const testScene2 = {
+        folds: 6,
+        motionMultiplier: 2.0,
+        light: { preset: 'rainbow-wave', speed: 0.75 },
+        layers: [
+            C.makeRuntime({
+                id: 'layer2', name: 'Layer 2', visible: true, engine: 'image', z: 0, proj: 'identity', folds: null,
+                extent: 0.9, clip: { inner: 0.1, outer: 0.9 }, opacity: 0.8, blend: 'multiply', dir: 'ccw', speed: 0.8, frozen: true,
+                scale: 0.9, x: 0, y: 0, light: { mode: 'light', strength: 0.3 },
+                pulse: { amount: 0, period: 20 }, orbit: { rx: 0, ry: 0, period: 90 }, sampleSpin: 0, params: {},
+                image: { assetId: a.id, crop: { x: 0, y: 0, w: 1, h: 1 }, fit: 'cover', mirrorX: false, mirrorY: true, alphaMode: 'legacy-luma', tint: null, tintStrength: 0, repeat: 'none', zoom: 1, panX: 0, panY: 0, tileR: 1.9, rot: 0 }
+            })
+        ]
+    };
+    const pRecord2 = await ImagePresets.savePreset('Test Preset Two', testScene2);
+    check('T8 multiple presets reference same storageId (asset deduplication)', pRecord1.assetIds[0] === pRecord2.assetIds[0], `${pRecord1.assetIds[0]} vs ${pRecord2.assetIds[0]}`);
+
+    // 3. Verify getAllPresets and global exposure
+    check('T8 window.ImagePresets is defined globally', typeof window.ImagePresets === 'object' && window.ImagePresets !== null);
+    const allP = await ImagePresets.getAllPresets();
+    check('T8 getAllPresets returns both saved presets', allP.some(p => p.id === pRecord1.id) && allP.some(p => p.id === pRecord2.id));
+
+    // 4. Update Preset 1
+    testScene.folds = 16;
+    testScene.layers[0].spec.opacity = 0.77;
+    await ImagePresets.updatePreset(pRecord1.id, testScene);
+    const updatedP1 = await ImagePresets.getPreset(pRecord1.id);
+    check('T8 updatePreset updates folds and layer opacity', updatedP1.scene.folds === 16 && updatedP1.scene.layers[0].opacity === 0.77);
+
+    // 5. Rename Preset 1
+    await ImagePresets.renamePreset(pRecord1.id, 'Renamed Preset One');
+    const renamedP1 = await ImagePresets.getPreset(pRecord1.id);
+    check('T8 renamePreset updates name', renamedP1.name === 'Renamed Preset One');
+
+    // 6. Restore Preset 2 into an empty scene
+    const restoreTarget = { folds: 0, motionMultiplier: 0, light: {}, layers: [] };
+    await ImagePresets.restorePreset(pRecord2.id, restoreTarget);
+    check('T8 restorePreset restores scene folds and motion', restoreTarget.folds === 6 && restoreTarget.motionMultiplier === 2.0 && restoreTarget.light.preset === 'rainbow-wave');
+    check('T8 restorePreset restores layer count and settings', restoreTarget.layers.length === 1 && restoreTarget.layers[0].spec.blend === 'multiply' && restoreTarget.layers[0].spec.light.mode === 'light' && restoreTarget.layers[0].spec.frozen === true);
+
+    // 7. Simulate browser restart: clear in-memory ImageArtEngine.assets, then restore Preset 1
+    ImageArtEngine.removeAsset(a.id);
+    check('T8 simulation: in-memory assets cleared before restart restore', ImageArtEngine.assets.size === 0);
+    const restartTarget = { folds: 0, motionMultiplier: 0, light: {}, layers: [] };
+    await ImagePresets.restorePreset(pRecord1.id, restartTarget);
+    check('T8 restorePreset without memory asset loads blob from IndexedDB', restartTarget.layers.length === 1 && ImageArtEngine.assets.size === 1);
+    check('T8 restored layer connects to loaded memory asset and preserves settings', restartTarget.layers[0].spec.light.mode === 'backlight' && restartTarget.layers[0].spec.opacity === 0.77 && restartTarget.layers[0].spec.image.tint === '#ffaacc');
+
+    // 8. Delete Preset 1; verify Preset 2 and shared asset survive
+    await ImagePresets.deletePreset(pRecord1.id);
+    const afterDel = await ImagePresets.getAllPresets();
+    check('T8 deletePreset removes target preset only', !afterDel.some(p => p.id === pRecord1.id) && afterDel.some(p => p.id === pRecord2.id));
+    const target2 = { folds: 0, motionMultiplier: 0, light: {}, layers: [] };
+    await ImagePresets.restorePreset(pRecord2.id, target2);
+    check('T8 shared asset was preserved after deleting first preset', target2.layers.length === 1);
+
+    // Clean up test preset 2
+    await ImagePresets.deletePreset(pRecord2.id);
+
+    /* ---- T9: Saved Images Library, Bundled Graphene & Backup/Restore ---- */
+    // 1. Bundled Graphene presence
+    const savedImgs1 = await ImagePresets.getSavedImages();
+    check('T9 getSavedImages includes Bundled Graphene', savedImgs1.some(i => i.isBundled && i.name.includes('Graphene Lattice')));
+
+    // 2. Save image to library
+    const libImgFixture = await blob(cv(32, 32));
+    const libRec1 = await ImagePresets.saveImageToLibrary('Test Library Gem', libImgFixture, { width: 32, height: 32 });
+    check('T9 saveImageToLibrary returns record with savedInLibrary true', libRec1 && libRec1.savedInLibrary === true && libRec1.libraryName === 'Test Library Gem');
+
+    const savedImgs2 = await ImagePresets.getSavedImages();
+    check('T9 saved image appears in getSavedImages', savedImgs2.some(i => i.id === libRec1.id && i.libraryName === 'Test Library Gem'));
+
+    // 3. Rename library image
+    await ImagePresets.renameLibraryImage(libRec1.id, 'Renamed Library Gem');
+    const renamedImg = await ImagePresets.getAsset(libRec1.id);
+    check('T9 renameLibraryImage updates libraryName', renamedImg && renamedImg.libraryName === 'Renamed Library Gem');
+
+    // 4. Retention: Preset referencing library image deleted -> library image survives
+    const memFixture = await ImageArtEngine.importFile(libImgFixture);
+    memFixture.storageId = libRec1.id;
+    const libTestScene = { folds: 8, motionMultiplier: 1, light: {}, layers: [C.makeRuntime({ id: 'l1', name: 'L1', visible: true, engine: 'image', z: 0, image: { assetId: memFixture.id } })] };
+    const pWithLibImg = await ImagePresets.savePreset('Preset with Lib Gem', libTestScene);
+    await ImagePresets.deletePreset(pWithLibImg.id);
+    const assetAfterPresetDel = await ImagePresets.getAsset(libRec1.id);
+    check('T9 asset retention: deleting preset never deletes savedInLibrary image', assetAfterPresetDel && assetAfterPresetDel.savedInLibrary === true);
+
+    // 5. Export Backup & Import Backup
+    const backupData = await ImagePresets.exportBackup();
+    check('T9 exportBackup produces valid backup payload', backupData && backupData.format === 'anima-artlab-backup' && Array.isArray(backupData.assets) && Array.isArray(backupData.presets));
+
+    // Remove library image
+    const removeRes = await ImagePresets.removeLibraryImage(libRec1.id);
+    check('T9 removeLibraryImage removes unreferenced image', removeRes && removeRes.deleted === true);
+    const assetAfterRemove = await ImagePresets.getAsset(libRec1.id);
+    check('T9 asset confirmed deleted after unreferenced library removal', assetAfterRemove === null);
+    ImageArtEngine.removeAsset(memFixture.id);
+
+    /* ---- native independence ---- */
+    check('T7 native presets need no uploaded assets', ImageArtEngine.assets.size === 1 /* only the fixture imported above */, 'assets=' + ImageArtEngine.assets.size);
+    const res = performance.getEntriesByType('resource').map(r => r.name.split('/').pop());
+    check('T7 page loaded no raster images (only scripts)', !res.some(n => /\.(png|jpe?g|webp|gif)$/i.test(n)), res.join(','));
+
+    NativeArtEngine.prepare = op; CanvasRenderingContext2D.prototype.getImageData = gi;
+    const out = results.map(r => `${r.ok ? 'PASS' : 'FAIL'}  ${r.name}${r.ok ? '' : '   <-- ' + r.detail}`).join('\n');
+    const failed = results.filter(r => !r.ok).length;
+    document.getElementById('out').innerHTML = results.map(r => `<span class="${r.ok ? 'pass' : 'fail'}">${r.ok ? 'PASS' : 'FAIL'}</span>  ${r.name}${r.ok ? '' : '   &lt;-- ' + r.detail}`).join('\n') + `\n\n${results.length - failed}/${results.length} passed`;
+    window.__results = { total: results.length, failed, lines: out };
+    window.__verifyDone = true;
+})().catch(e => { document.getElementById('out').textContent = 'HARNESS ERROR ' + e.stack; window.__results = { error: String(e.stack) }; window.__verifyDone = true; });
+</script>
+</body>
+</html>

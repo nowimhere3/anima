@@ -1,0 +1,1 @@
+[{"name":"sandbox-verify","url":"sandbox/verify.html","eval":"(async()=>{await new Promise(r=>setTimeout(r,2500));return document.getElementById('results')?document.getElementById('results').textContent:document.body.innerText})()","shot":false,"w":900,"h":700}]

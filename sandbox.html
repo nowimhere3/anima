@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kaleidoscope Sandbox</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <style>
+        details.sec-group {
+            width: 100%;
+            margin: 4px 0;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.02);
+            overflow: hidden;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        details.sec-group[open] {
+            background: rgba(255, 255, 255, 0.035);
+            border-color: rgba(255, 255, 255, 0.16);
+        }
+        summary.section-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            cursor: pointer;
+            user-select: none;
+            list-style: none;
+            margin: 0;
+            background: rgba(255, 255, 255, 0.03);
+            transition: background 0.15s, color 0.15s;
+        }
+        summary.section-title::-webkit-details-marker {
+            display: none;
+        }
+        summary.section-title::before {
+            content: '▶';
+            display: inline-block;
+            font-size: 8px;
+            color: rgba(255, 255, 255, 0.5);
+            transform: rotate(0deg);
+            transition: transform 0.15s ease, color 0.15s ease;
+        }
+        details.sec-group[open] > summary.section-title::before {
+            transform: rotate(90deg);
+            color: #38bdf8;
+        }
+        summary.section-title:hover, summary.section-title:focus-visible {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.08);
+        }
+        summary.section-title:focus-visible {
+            outline: 2px solid #38bdf8;
+            outline-offset: -2px;
+        }
+        .sec-content {
+            padding: 12px 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Full-viewport kaleidoscope output canvas -->
+    <canvas id="animation"></canvas>
+
+    <!-- First fold: just the canvas, no copy -->
+    <div class="first-fold"></div>
+
+    <button id="toggleControls" class="toggle-controls" title="Show/hide controls">🪞</button>
+
+    <!-- Everything below the fold: merged settings panel -->
+    <section class="control-section">
+        <div id="stickyTable" class="control-dock">
+
+            <!-- Top bar: master modes + single master speed control -->
+            <div class="top-bar">
+                <div class="master-modes">
+                    <button class="btn" id="btn-all-smooth" data-brand="all">
+                        <span class="tag">ALL</span> Smooth Cycle
+                    </button>
+                    <button class="btn" id="btn-all-chaos" data-brand="all">
+                        <span class="tag">ALL</span> Chaos Morph
+                    </button>
+                </div>
+
+                <div class="speed-control">
+                    <span>Animation Speed</span>
+                    <input type="range" id="speedInput" min="0.00" max="3.00" step="0.01" value="1.00">
+                    <span class="speed-val" id="speedVal">1.00x</span>
+                </div>
+            </div>
+
+            <!-- Palette / RGB effect selection (World) -->
+            <details class="section-group sec-group" data-sec="sandbox-palette" open>
+                <summary class="section-title sec-header">Palette &amp; Color Effect (RPG Engine)</summary>
+                <div class="sec-content">
+                    <div class="preset-buttons" id="color-presets">
+                        <button class="btn btn-rgb active" data-rgb="chroma-spectrum" data-brand="razer">
+                            <span class="tag">Razer</span> Chroma Spectrum
+                        </button>
+                        <button class="btn btn-rgb" data-rgb="chroma-pulse" data-brand="razer">
+                            <span class="tag">Razer</span> Chroma Pulse
+                        </button>
+                        <button class="btn btn-rgb" data-rgb="chroma-aurora" data-brand="razer">
+                            <span class="tag">Razer</span> Chroma Aurora
+                        </button>
+                        <button class="btn btn-rgb" data-rgb="chroma-hypershift" data-brand="razer">
+                            <span class="tag">Razer</span> Chroma Shift
+                        </button>
+                        <button class="btn btn-rgb" data-rgb="rainbow-wave" data-brand="corsair">
+                            <span class="tag">Corsair</span> Rainbow Wave
+                        </button>
+                        <button class="btn btn-rgb" data-rgb="spiral-rainbow" data-brand="corsair">
+                            <span class="tag">Corsair</span> Spiral Wave
+                        </button>
+                        <button class="btn btn-rgb" data-rgb="cascading-rainbow" data-brand="corsair">
+                            <span class="tag">Corsair</span> Cascade
+                        </button>
+                        <button class="btn btn-rgb" data-rgb="chroma-breathing" data-brand="razer">
+                            <span class="tag">Razer</span> Dynamic Breathing
+                        </button>
+                        <button class="btn btn-rgb" data-rgb="logi-lightsync" data-brand="logitech">
+                            <span class="tag">Logitech</span> LIGHTSYNC
+                        </button>
+                        <button class="btn btn-rgb" data-rgb="msi-mystic" data-brand="msi">
+                            <span class="tag">MSI</span> Mystic Light
+                        </button>
+                        <button class="btn btn-rgb" data-rgb="nzxt-cam" data-brand="nzxt">
+                            <span class="tag">NZXT</span> CAM Spectrum
+                        </button>
+                        <button class="btn btn-rgb" data-rgb="breath-spectrum" data-brand="expanded">
+                            <span class="tag">Variation</span> Breathing Spectrum
+                        </button>
+                    </div>
+                </div>
+            </details>
+
+            <!-- Artwork + optics settings (Mask / Optics) -->
+            <details class="section-group sec-group" data-sec="sandbox-artwork" open>
+                <summary class="section-title sec-header">Artwork &amp; Kaleidoscope</summary>
+                <div class="sec-content">
+                    <table id="inputTable">
+                        <tr>
+                            <td>
+                                <label for="imageInput" class="custom-file-upload">
+                                    Upload Artwork (PNG)
+                                </label>
+                                <input type="file" id="imageInput" accept="image/png,image/*">
+                                <button id="saveArtworkButton" class="save-artwork-button" disabled>Save Artwork</button>
+                                <div class="file-name" id="artworkFileName">No artwork uploaded — showing raw color engine</div>
+                            </td>
+                            <td>
+                                <pre><span class="tableText"># of Tiles</span><br><input type="number" id="numTilesNumberInput" class="input-number-noSpinners" value="5" min="2" max="25"> <input class="input-number-noSpinners" type="range" id="numTilesInput" value="5" min="2" max="25"></pre>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><span class="tableText">Width: </span><input type="number" id="canvasWidthInput" class="input-number-noSpinners" value="800" min="1"></td>
+                            <td><span class="tableText">Height: </span><input type="number" id="canvasHeightInput" class="input-number-noSpinners" value="800" min="1"></td>
+                            <td><button id="screenshotButton">Screenshot (s)</button></td>
+                        </tr>
+                    </table>
+                </div>
+            </details>
+
+            <details class="section-group sec-group" data-sec="sandbox-optics" open>
+                <summary class="section-title sec-header">Sandbox Optics</summary>
+                <div class="sec-content">
+                    <label for="symmetryMode">Symmetry</label>
+                    <select id="symmetryMode"><option value="classic">Classic grid</option><option value="radial">Radial mandala</option><option value="rings">Rings</option><option value="kaleido-rings">Kaleido rings</option></select>
+                    <label for="radialFolds">Radial folds</label>
+                    <input type="number" id="radialFolds" min="2" max="24" step="1" value="6">
+                    <label for="ringCount">Rings</label>
+                    <input type="number" id="ringCount" min="1" max="16" step="1" value="6">
+                    <label for="luminanceMask"><input type="checkbox" id="luminanceMask"> Luminance to alpha</label>
+                </div>
+            </details>
+
+            <!-- Persistent Artwork Library (Phase 1) -->
+            <details class="section-group sec-group" data-sec="sandbox-library" open>
+                <summary class="section-title sec-header">Artwork Library</summary>
+                <div class="sec-content">
+                    <div class="library-grid" id="artworkLibraryGrid">
+                        <div class="library-empty" id="artworkLibraryEmpty">No saved artwork yet — upload something and hit Save Artwork.</div>
+                    </div>
+                </div>
+            </details>
+
+        </div>
+    </section>
+
+    <script src="world.js"></script>
+    <script src="sandbox/mask.js"></script>
+    <script src="sandbox/optics.js"></script>
+    <script src="sandbox/library.js"></script>
+    <script src="sandbox/main.js"></script>
+
+</body>
+</html>

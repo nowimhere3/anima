@@ -1,0 +1,72 @@
+[
+  {
+    "name": "artlab-01-initial-unobstructed",
+    "url": "kaleidoscope-lab.html?preset=cathedral&still=1",
+    "w": 1920,
+    "h": 1080,
+    "eval": "(() => { const p = document.getElementById('panel').getBoundingClientRect(); const btn = document.getElementById('hideBtn').textContent.trim(); return { scrollY: window.scrollY, panelTop: p.top, panelVisibleInViewport: (p.top < window.innerHeight), btnIcon: btn }; })()"
+  },
+  {
+    "name": "artlab-02-scrolled-controls-dock",
+    "url": "kaleidoscope-lab.html?preset=cathedral&still=1",
+    "w": 1920,
+    "h": 1080,
+    "eval": "(() => { document.getElementById('panel').scrollIntoView({ behavior: 'instant', block: 'start' }); const p = document.getElementById('panel').getBoundingClientRect(); const btn = document.getElementById('hideBtn').textContent.trim(); return { scrollY: window.scrollY, panelTop: p.top, panelInView: (p.top >= 0 && p.top < window.innerHeight), btnIcon: btn }; })()"
+  },
+  {
+    "name": "artlab-03-scrolled-back-to-art",
+    "url": "kaleidoscope-lab.html?preset=cathedral&still=1",
+    "w": 1920,
+    "h": 1080,
+    "eval": "(() => { document.getElementById('panel').scrollIntoView({ behavior: 'instant', block: 'start' }); window.scrollTo({ top: 0, behavior: 'instant' }); const p = document.getElementById('panel').getBoundingClientRect(); return { scrollY: window.scrollY, panelTop: p.top, panelBelowFold: (p.top >= window.innerHeight) }; })()"
+  },
+  {
+    "name": "artlab-04-h-shortcut-hidden",
+    "url": "kaleidoscope-lab.html?preset=cathedral&still=1",
+    "w": 1920,
+    "h": 1080,
+    "eval": "(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' })); return { hideUi: document.body.classList.contains('hide-ui'), panelDisplay: getComputedStyle(document.getElementById('panel')).display }; })()"
+  },
+  {
+    "name": "artlab-05-narrow-mobile-view",
+    "url": "kaleidoscope-lab.html?preset=cathedral&still=1",
+    "w": 390,
+    "h": 844,
+    "eval": "(() => { const p0 = document.getElementById('panel').getBoundingClientRect(); document.getElementById('panel').scrollIntoView({ behavior: 'instant', block: 'start' }); const p1 = document.getElementById('panel').getBoundingClientRect(); return { initialPanelTop: p0.top, scrolledPanelTop: p1.top, scrollY: window.scrollY }; })()"
+  },
+  {
+    "name": "artlab-06-transparent-png-backlight-off",
+    "url": "kaleidoscope-lab.html?still=1",
+    "w": 1280,
+    "h": 720,
+    "eval": "(async () => {\n  const mk = (w, h) => {\n    const c = document.createElement('canvas'); c.width = w; c.height = h;\n    const x = c.getContext('2d');\n    x.clearRect(0, 0, w, h);\n    x.fillStyle = '#ff2255';\n    x.fillRect(w * 0.2, h * 0.2, w * 0.6, h * 0.6);\n    x.clearRect(w * 0.35, h * 0.35, w * 0.3, h * 0.3);\n    x.fillStyle = 'rgba(0, 220, 255, 0.5)';\n    x.fillRect(w * 0.4, h * 0.4, w * 0.2, h * 0.2);\n    return new Promise(r => c.toBlob(b => r(new File([b], 'cutout.png', { type: 'image/png' }))));\n  };\n  const file = await mk(512, 512);\n  AnimaLab.selectWorkspace('images');\n  await AnimaLab.importFiles([file]);\n  const s = AnimaLab.scene;\n  const layer = s.layers[0];\n  layer.spec.light = { mode: 'direct', strength: 0 };\n  AnimaLab.renderNow();\n  return { mode: layer.spec.light.mode, strength: layer.spec.light.strength };\n})()"
+  },
+  {
+    "name": "artlab-07-transparent-png-backlight-on",
+    "url": "kaleidoscope-lab.html?still=1",
+    "w": 1280,
+    "h": 720,
+    "eval": "(async () => {\n  const mk = (w, h) => {\n    const c = document.createElement('canvas'); c.width = w; c.height = h;\n    const x = c.getContext('2d');\n    x.clearRect(0, 0, w, h);\n    x.fillStyle = '#ff2255';\n    x.fillRect(w * 0.2, h * 0.2, w * 0.6, h * 0.6);\n    x.clearRect(w * 0.35, h * 0.35, w * 0.3, h * 0.3);\n    x.fillStyle = 'rgba(0, 220, 255, 0.5)';\n    x.fillRect(w * 0.4, h * 0.4, w * 0.2, h * 0.2);\n    return new Promise(r => c.toBlob(b => r(new File([b], 'cutout.png', { type: 'image/png' }))));\n  };\n  const file = await mk(512, 512);\n  AnimaLab.selectWorkspace('images');\n  await AnimaLab.importFiles([file]);\n  const s = AnimaLab.scene;\n  const layer = s.layers[0];\n  layer.spec.light = { mode: 'backlight', strength: 1.0 };\n  s.light.preset = 'chroma-spectrum';\n  World.setActiveRGB('chroma-spectrum');\n  AnimaLab.step(0.1, 10);\n  AnimaLab.renderNow();\n  return { mode: layer.spec.light.mode, strength: layer.spec.light.strength };\n})()"
+  },
+  {
+    "name": "artlab-08-backlight-anim-t0",
+    "url": "kaleidoscope-lab.html?still=1",
+    "w": 1280,
+    "h": 720,
+    "eval": "(async () => {\n  const mk = (w, h) => {\n    const c = document.createElement('canvas'); c.width = w; c.height = h;\n    const x = c.getContext('2d');\n    x.clearRect(0, 0, w, h);\n    x.fillStyle = '#ff2255';\n    x.fillRect(w * 0.2, h * 0.2, w * 0.6, h * 0.6);\n    x.clearRect(w * 0.35, h * 0.35, w * 0.3, h * 0.3);\n    return new Promise(r => c.toBlob(b => r(new File([b], 'cutout.png', { type: 'image/png' }))));\n  };\n  const file = await mk(512, 512);\n  AnimaLab.selectWorkspace('images');\n  await AnimaLab.importFiles([file]);\n  const s = AnimaLab.scene;\n  const layer = s.layers[0];\n  layer.spec.light = { mode: 'backlight', strength: 1.0 };\n  s.light.preset = 'rainbow-wave';\n  World.setActiveRGB('rainbow-wave');\n  AnimaLab.step(0, 1);\n  AnimaLab.renderNow();\n  const cv = document.getElementById('labCanvas');\n  const ctx = cv.getContext('2d');\n  const d0 = ctx.getImageData(cv.width/2, cv.height/2, 1, 1).data;\n  window.__d0 = Array.from(d0);\n  return { centerRGB_t0: window.__d0 };\n})()"
+  },
+  {
+    "name": "artlab-09-backlight-anim-t1",
+    "url": "kaleidoscope-lab.html?still=1",
+    "w": 1280,
+    "h": 720,
+    "eval": "(async () => {\n  const mk = (w, h) => {\n    const c = document.createElement('canvas'); c.width = w; c.height = h;\n    const x = c.getContext('2d');\n    x.clearRect(0, 0, w, h);\n    x.fillStyle = '#ff2255';\n    x.fillRect(w * 0.2, h * 0.2, w * 0.6, h * 0.6);\n    x.clearRect(w * 0.35, h * 0.35, w * 0.3, h * 0.3);\n    return new Promise(r => c.toBlob(b => r(new File([b], 'cutout.png', { type: 'image/png' }))));\n  };\n  const file = await mk(512, 512);\n  AnimaLab.selectWorkspace('images');\n  await AnimaLab.importFiles([file]);\n  const s = AnimaLab.scene;\n  const layer = s.layers[0];\n  layer.spec.light = { mode: 'backlight', strength: 1.0 };\n  s.light.preset = 'rainbow-wave';\n  World.setActiveRGB('rainbow-wave');\n  AnimaLab.step(1.5, 30);\n  AnimaLab.renderNow();\n  const cv = document.getElementById('labCanvas');\n  const ctx = cv.getContext('2d');\n  const d1 = ctx.getImageData(cv.width/2, cv.height/2, 1, 1).data;\n  return { centerRGB_t1: Array.from(d1) };\n})()"
+  },
+  {
+    "name": "artlab-10-color-tint-comparison",
+    "url": "kaleidoscope-lab.html?still=1",
+    "w": 1280,
+    "h": 720,
+    "eval": "(async () => {\n  const mk = (w, h) => {\n    const c = document.createElement('canvas'); c.width = w; c.height = h;\n    const x = c.getContext('2d');\n    x.clearRect(0, 0, w, h);\n    x.fillStyle = '#ff2255';\n    x.fillRect(w * 0.2, h * 0.2, w * 0.6, h * 0.6);\n    x.clearRect(w * 0.35, h * 0.35, w * 0.3, h * 0.3);\n    return new Promise(r => c.toBlob(b => r(new File([b], 'cutout.png', { type: 'image/png' }))));\n  };\n  const file = await mk(512, 512);\n  AnimaLab.selectWorkspace('images');\n  await AnimaLab.importFiles([file]);\n  const s = AnimaLab.scene;\n  const layer = s.layers[0];\n  layer.spec.light = { mode: 'light', strength: 0.8 };\n  s.light.preset = 'chroma-spectrum';\n  World.setActiveRGB('chroma-spectrum');\n  AnimaLab.step(0.1, 10);\n  AnimaLab.renderNow();\n  return { mode: layer.spec.light.mode, strength: layer.spec.light.strength };\n})()"
+  }
+]

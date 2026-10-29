@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anima Fusion — Live Art Lab Into Sandbox</title>
+    <link rel="stylesheet" href="lab/fusion.css">
+</head>
+<body class="anima-fusion" data-ftab="source">
+
+    <!-- Fullscreen Stage 2 Output Canvas -->
+    <canvas id="fusionCanvas" aria-label="Anima Fusion kaleidoscope artwork"></canvas>
+    <div id="busy" class="busy" role="status" aria-live="polite">Preparing…</div>
+    <div id="emptyMsg" class="empty">Import pictures or choose a Saved Image / Saved Preset below to build a Fusion kaleidoscope.</div>
+    <div id="stats" class="stats"></div>
+
+    <button id="hideBtn" class="fab" type="button" title="Show / hide controls (H)" aria-label="Show or hide controls">☰</button>
+
+    <!-- First fold: unobstructed full-viewport artwork -->
+    <div class="first-fold" aria-hidden="true"></div>
+
+    <aside id="panel" class="panel" aria-label="Anima Fusion controls">
+        <header>
+            <div class="fusion-header">
+                <h1>Anima Fusion <span class="fusion-badge">Stage 1 → Stage 2 Live</span></h1>
+            </div>
+
+            <!-- Dual-stage transport bar (always accessible across tabs) -->
+            <div class="transport-bar" role="group" aria-label="Playback and capture controls">
+                <button id="stage1PlayBtn" type="button" class="btn stage-on" aria-pressed="false" title="Play or pause Stage 1 (Art Lab source)">❚❚ Stage 1: Playing</button>
+                <button id="stage2PlayBtn" type="button" class="btn stage-on" aria-pressed="false" title="Play or pause Stage 2 (Sandbox optics)">❚❚ Stage 2: Playing</button>
+                <button id="masterPlayBtn" type="button" class="btn" aria-pressed="false" title="Toggle both stages together (Space)">❚❚ Pause Both</button>
+                <button id="shot" type="button" class="btn" title="Save PNG screenshot of Fusion canvas">Screenshot</button>
+            </div>
+
+            <!-- Sandbox Optics Stage Bypass Control (Create First, Fuse Second) -->
+            <div class="optics-toggle-bar" role="group" aria-label="Sandbox optics stage toggle">
+                <button id="sandboxOpticsToggleBtn" type="button" class="btn optics-toggle-btn optics-off" aria-pressed="false" title="Toggle Sandbox optics stage (Bypass or Apply Optics)">
+                    <span class="optics-toggle-indicator">○</span> Sandbox Optics: OFF
+                </button>
+                <span id="opticsModeStatus" class="optics-mode-status">Pure Art Lab — Sandbox optics bypassed</span>
+            </div>
+
+            <!-- Stage 1 Live Feed Monitor -->
+            <div class="stage-monitor" aria-label="Stage 1 live source preview">
+                <canvas id="stage1PreviewCanvas" width="64" height="64" title="Live Stage 1 Art Lab kaleidoscope feeding Stage 2 Sandbox"></canvas>
+                <div class="stage-monitor-info">
+                    <strong>Live Source Feed (Stage 1 → Stage 2)</strong>
+                    <span id="stageMonitorMeta">Stage 1 (Art Lab) continuously feeds Stage 2 (Sandbox Optics) every frame.</span>
+                </div>
+            </div>
+
+            <!-- Two Top-Level Engine Tabs -->
+            <div id="fusionTabs" class="tabs" role="tablist" aria-label="Fusion engine stage controls">
+                <button type="button" role="tab" id="tabBtnSource" data-ftab="source" aria-selected="true">Tab 1 — Art Lab / Source</button>
+                <button type="button" role="tab" id="tabBtnOptics" data-ftab="optics" aria-selected="false">Tab 2 — Sandbox / Optics</button>
+            </div>
+        </header>
+
+        <!-- ========================================================= -->
+        <!-- TAB 1 — ART LAB / SOURCE (STAGE 1)                        -->
+        <!-- ========================================================= -->
+        <section class="ftab ftab-source" role="tabpanel" aria-labelledby="tabBtnSource">
+            <details class="sec-group" data-sec="fusion-pictures" open>
+                <summary class="sec-header">Pictures</summary>
+                <div class="sec-content">
+                    <label class="btn file">Import pictures…<input id="fileInput" type="file" accept="image/*" multiple hidden></label>
+                    <p class="hint">Or drop image files on the window. PNG transparency and original colors are preserved.</p>
+                    <div id="assetList" class="assets"></div>
+                    <p id="note" class="hint" role="status"></p>
+                </div>
+            </details>
+
+            <details class="sec-group" data-sec="fusion-saved-images" open>
+                <summary class="sec-header">My Saved Images</summary>
+                <div class="sec-content">
+                    <div class="row">
+                        <select id="savedImageSelect" class="preset-dropdown" aria-label="Select saved image">
+                            <option value="">— Select Saved Image —</option>
+                        </select>
+                    </div>
+                    <div class="row btn-row">
+                        <button id="useImageSelectedLayerBtn" type="button" class="btn" title="Use in selected layer" disabled>Use in Layer</button>
+                        <button id="addImageAsLayerBtn" type="button" class="btn" title="Add as new layer" disabled>Add as Layer</button>
+                    </div>
+                    <div class="row btn-row preset-actions" id="savedImageActionsRow" style="display: none;">
+                        <button id="renameSavedImageBtn" type="button" class="btn" title="Rename saved image">Rename</button>
+                        <button id="downloadSavedImageBtn" type="button" class="btn" title="Download image file">Download</button>
+                        <button id="removeSavedImageBtn" type="button" class="btn danger" title="Remove from library">Remove</button>
+                    </div>
+                    <p id="savedImageStatus" class="hint" role="status"></p>
+                </div>
+            </details>
+
+            <details class="sec-group" data-sec="fusion-presets" open>
+                <summary class="sec-header">My Presets</summary>
+                <div class="sec-content">
+                    <div class="row">
+                        <select id="userPresetSelect" class="preset-dropdown" aria-label="Select saved preset">
+                            <option value="">— Select Saved Preset —</option>
+                        </select>
+                    </div>
+                    <div class="row btn-row">
+                        <button id="savePresetBtn" type="button" class="btn" title="Save current Stage 1 settings as a new preset">Save Preset</button>
+                        <button id="loadPresetBtn" type="button" class="btn" title="Load selected preset into Stage 1" disabled>Load Preset</button>
+                    </div>
+                    <div class="row btn-row preset-actions" id="presetActionsRow" style="display: none;">
+                        <button id="updatePresetBtn" type="button" class="btn" title="Overwrite selected preset with current Stage 1 settings">Update</button>
+                        <button id="renamePresetBtn" type="button" class="btn" title="Rename selected preset">Rename</button>
+                        <button id="deletePresetBtn" type="button" class="btn danger" title="Delete selected preset">Delete</button>
+                    </div>
+                    <p id="presetStatus" class="hint" role="status"></p>
+
+                    <div class="row btn-row backup-row" style="margin-top: 10px;">
+                        <button id="exportBackupBtn" type="button" class="btn" title="Export complete backup of all presets and saved images">Export Backup</button>
+                        <label class="btn file" title="Import backup JSON" style="margin: 0; text-align: center;">Import Backup…<input id="importBackupInput" type="file" accept=".json,application/json" hidden></label>
+                    </div>
+                </div>
+            </details>
+
+            <details class="sec-group" data-sec="fusion-stage1-scene" open>
+                <summary class="sec-header">Stage 1 — Art Lab Scene</summary>
+                <div class="sec-content">
+                    <label class="row"><span>Motion</span><input id="motionMul" type="range" min="0" max="3" step="0.01" value="1.00"><output id="motionVal">1.00x</output></label>
+                    <label class="row"><span>Folds</span><input id="sceneFolds" type="range" min="2" max="24" step="1" value="8"><output id="foldsVal">8</output></label>
+                    <label class="row"><span>Light</span><select id="lightPreset" aria-label="Stage 1 Light preset"></select></label>
+                    <label class="row"><span>Light speed</span><input id="lightSpeed" type="range" min="0" max="3" step="0.05" value="0.5"><output id="lightVal">0.50</output></label>
+                    <label class="row"><span>Stage 1 Canvas</span>
+                        <select id="stage1Bg" aria-label="Stage 1 background">
+                            <option value="#05060c" selected>Studio Dark (#05060c)</option>
+                            <option value="transparent">Clean Transparent (RGBA)</option>
+                        </select>
+                    </label>
+                    <label class="row"><span>Source Res</span>
+                        <select id="stage1Res" aria-label="Stage 1 resolution">
+                            <option value="512" selected>512 × 512 (Balanced 60fps)</option>
+                            <option value="768">768 × 768 (Crisp High-Res)</option>
+                        </select>
+                    </label>
+                </div>
+            </details>
+
+            <details class="sec-group" data-sec="fusion-stage1-layers" open>
+                <summary class="sec-header">Stage 1 — Layers</summary>
+                <div class="sec-content">
+                    <div id="layerList" class="layers" role="listbox" aria-label="Stage 1 Layers"></div>
+                </div>
+            </details>
+
+            <details class="sec-group" data-sec="fusion-stage1-inspector" open>
+                <summary class="sec-header">Stage 1 — Layer Inspector</summary>
+                <div class="sec-content">
+                    <div id="inspector" class="inspector"></div>
+                </div>
+            </details>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- TAB 2 — SANDBOX / OPTICS (STAGE 2)                        -->
+        <!-- ========================================================= -->
+        <section class="ftab ftab-optics" role="tabpanel" aria-labelledby="tabBtnOptics">
+            <details class="sec-group" data-sec="fusion-stage2-optics" open>
+                <summary class="sec-header">Stage 2 — Sandbox Optical Engine</summary>
+                <div class="sec-content">
+                    <div class="row" style="margin-bottom: 8px;">
+                        <span>Sandbox State</span>
+                        <button id="stage2OpticsInlineToggleBtn" type="button" class="btn optics-inline-btn" title="Toggle Sandbox optics ON/OFF">Enable Sandbox Optics</button>
+                    </div>
+                    <label class="row"><span>Optics Mode</span>
+                        <select id="symmetryMode" aria-label="Sandbox symmetry mode">
+                            <option value="classic">Classic Mirror Grid</option>
+                            <option value="radial">Radial Mandala</option>
+                            <option value="rings">Concentric Rings</option>
+                            <option value="kaleido-rings" selected>Kaleido-Rings</option>
+                        </select>
+                    </label>
+                    <label class="row"><span>Number of Tiles</span>
+                        <input id="numTilesInput" type="range" min="2" max="25" step="1" value="5">
+                        <input id="numTilesNumberInput" type="number" min="2" max="25" step="1" value="5" aria-label="Number of tiles">
+                    </label>
+                    <label class="row"><span>Radial Folds</span>
+                        <input id="radialFolds" type="range" min="2" max="24" step="1" value="6">
+                        <output id="radialFoldsVal">6</output>
+                    </label>
+                    <label class="row"><span>Ring Count</span>
+                        <input id="ringCount" type="range" min="1" max="16" step="1" value="6">
+                        <output id="ringCountVal">6</output>
+                    </label>
+                </div>
+            </details>
+
+            <details class="sec-group" data-sec="fusion-stage2-kinematics" open>
+                <summary class="sec-header">Stage 2 — Sandbox Motion &amp; Kinematics</summary>
+                <div class="sec-content">
+                    <label class="row"><span>Master Speed</span>
+                        <input id="sandboxSpeed" type="range" min="0" max="3" step="0.01" value="1">
+                        <output id="sandboxSpeedVal">1.00x</output>
+                    </label>
+                    <label class="row"><span>Orbit Rate</span>
+                        <input id="sandboxOrbitRate" type="range" min="0" max="3" step="0.05" value="1">
+                        <output id="sandboxOrbitRateVal">1.00×</output>
+                    </label>
+                    <label class="row"><span>Orbit Excursion</span>
+                        <input id="sandboxOrbitAmount" type="range" min="0" max="0.7" step="0.01" value="0.35">
+                        <output id="sandboxOrbitAmountVal">0.35</output>
+                    </label>
+                    <label class="row"><span>Source Spin</span>
+                        <input id="sandboxSpinRate" type="range" min="-3" max="3" step="0.05" value="1">
+                        <output id="sandboxSpinRateVal">1.00×</output>
+                    </label>
+                    <label class="row"><span>Ring Rotation</span>
+                        <input id="sandboxRingRate" type="range" min="-3" max="3" step="0.05" value="1">
+                        <output id="sandboxRingRateVal">1.00×</output>
+                    </label>
+                    <label class="row"><span>Ring Breathing</span>
+                        <input id="sandboxRingBreath" type="range" min="0" max="0.1" step="0.005" value="0.025">
+                        <output id="sandboxRingBreathVal">0.025</output>
+                    </label>
+                    <div class="row btn-row" style="margin-top: 10px;">
+                        <button id="resetSandboxBtn" type="button" class="btn" title="Reset Stage 2 Sandbox controls to default">Reset Stage 2 Optics</button>
+                    </div>
+                </div>
+            </details>
+
+            <details class="sec-group" data-sec="fusion-stage2-color" open>
+                <summary class="sec-header">Stage 2 — Color Treatment</summary>
+                <div class="sec-content">
+                    <div class="row">
+                        <span>Color Mode</span>
+                        <span class="mode-pill" id="stage2ColorModeLabel">Pass-Through RGB (Preserves Stage 1 Art Lab Colors &amp; Lighting)</span>
+                    </div>
+                    <p class="hint">Stage 1's RPG lighting (Direct, Color Tint, Backlight, Both) and original artwork colors pass cleanly through Stage 2's optical geometry.</p>
+                </div>
+            </details>
+        </section>
+
+        <footer><small>H hide · Space play/pause both · 1/2 switch tabs · [ ] select layer · D stats</small></footer>
+    </aside>
+
+    <script src="world.js"></script>
+    <script src="lab/presets.js"></script>
+    <script src="lab/bundled-images.js"></script>
+    <script src="lab/image-art.js"></script>
+    <script src="lab/image-presets.js"></script>
+    <script src="lab/optics.js"></script>
+    <script src="lab/compositor.js"></script>
+    <script src="sandbox/optics.js"></script>
+    <script src="lab/fusion.js"></script>
+    <script src="lab/export/offline-renderer.js"></script>
+</body>
+</html>
