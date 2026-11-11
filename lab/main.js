@@ -5,7 +5,7 @@
 (function () {
     "use strict";
     const C = LabCompositor;
-    const $ = id => document.getElementById(id);
+    const $ = id => document.getElementById(id) || InspectorPopout.find(id);
     const qs = new URLSearchParams(location.search);
 
     const canvas = $('labCanvas'), ctx = canvas.getContext('2d', { alpha: false });
@@ -938,6 +938,7 @@
         window.scrollTo(0, 0);
         wire();
         initCollapsibleSections();
+        InspectorPopout.init({ detailsSelector: 'details[data-sec="inspector"]', title: 'Layer Inspector', storageKey: 'anima_lab_inspector_float' });
         refreshUserPresetsDropdown();
         refreshSavedImagesDropdown();
         const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;

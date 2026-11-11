@@ -15,6 +15,33 @@
 
         html {
             scroll-behavior: smooth;
+            scrollbar-width: none;
+        }
+
+        html::-webkit-scrollbar { display: none; }
+        .pair-controls { align-self: flex-end; display: flex; align-items: center; gap: 8px; font-size: 12px; }
+        #pair-button { font: inherit; color: inherit; background: transparent; border: 1px solid #ffffff40; border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+        #page-scrollbar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 12px;
+            height: 100%;
+            z-index: 10000;
+            touch-action: none;
+        }
+        #page-scrollbar-thumb {
+            position: absolute;
+            right: 3px;
+            width: 6px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.55);
+            opacity: 0;
+            transition: opacity 180ms ease;
+        }
+        #page-scrollbar.active #page-scrollbar-thumb { opacity: 1; }
+        @media (prefers-reduced-motion: reduce) {
+            #page-scrollbar-thumb { transition: none; }
         }
 
         body {
@@ -232,6 +259,7 @@
     <section class="control-section">
         <div class="control-dock">
             
+            <div class="pair-controls"><span id="pair-status" role="status" aria-live="polite"></span><button id="pair-button" type="button">Pair</button></div>
             <!-- TOP BAR: Master ALL Modes & Speed Slider -->
             <div class="top-bar">
                 <div class="master-modes">
@@ -317,6 +345,10 @@
         </div>
     </section>
 
+    <script src="index2-pair.js"></script>
+    <script src="index2-color-clock.js"></script>
+    <script src="index2-light-colors.js"></script>
+    <script src="index2-lighting-channel.js"></script>
     <script>
         // Main Display Canvas
         const displayCanvas = document.getElementById('display-canvas');
@@ -349,6 +381,8 @@
 
         let speedMultiplier = 1.0;
         let time = 0;
+        const colorClock = Index2ColorClock();
+        let colorTime = 0;
         let ripples = [];
 
         const rgbList = Array.from(rgbBtns).map(b => b.getAttribute('data-rgb'));
@@ -631,6 +665,8 @@
         ------------------------------------------------------------------ */
         function render() {
             time += 0.01 * speedMultiplier;
+            colorTime = colorClock.time(time);
+            if (colorClock.paired()) currentBreathHue = colorClock.hue(colorTime);
 
             sceneCtx.clearRect(0, 0, width, height);
 
@@ -662,6 +698,7 @@
         }
 
         function updateMasterAllCycle() {
+            const time = colorTime;
             const stepDuration = 6;
             const fadeDuration = 2;
 
@@ -691,130 +728,15 @@
            RGB BASE LAYERS (ONLY THE 11 SELECTIONS)
         ------------------------------------------------------------------ */
         function drawRGBBase(type, c) {
-            switch (type) {
-                case 'chroma-spectrum':
-                    const hue = (time * 80) % 360;
-                    const gradS = c.createRadialGradient(width/2, height/2, 50, width/2, height/2, Math.max(width, height) * 0.7);
-                    gradS.addColorStop(0, `hsl(${hue}, 100%, 65%)`);
-                    gradS.addColorStop(0.5, `hsl(${(hue + 40) % 360}, 100%, 45%)`);
-                    gradS.addColorStop(1, `hsl(${(hue + 90) % 360}, 100%, 25%)`);
-                    c.fillStyle = gradS; c.fillRect(0, 0, width, height);
-                    break;
-
-                case 'chroma-pulse':
-                    c.fillStyle = '#030308'; c.fillRect(0, 0, width, height);
-                    const baseHueP = (time * 70) % 360;
-                    for (let i = 5; i >= 1; i--) {
-                        const radius = (Math.max(width, height) * 0.6 / 5) * i * (Math.sin(time * 2.5 + i * 0.8) * 0.2 + 1);
-                        const gradP = c.createRadialGradient(width/2, height/2, 0, width/2, height/2, radius);
-                        gradP.addColorStop(0, `hsla(${(baseHueP + i * 45) % 360}, 100%, 60%, 0.8)`);
-                        gradP.addColorStop(1, 'transparent');
-                        c.fillStyle = gradP; c.beginPath(); c.arc(width/2, height/2, radius, 0, Math.PI * 2); c.fill();
-                    }
-                    break;
-
-                case 'chroma-aurora':
-                    c.fillStyle = '#010408'; c.fillRect(0, 0, width, height);
-                    const aHue1 = (time * 30 + 120) % 360;
-                    const aHue2 = (time * 40 + 200) % 360;
-                    const aurX = width / 2 + Math.sin(time * 1.2) * (width * 0.3);
-                    const aurY = height / 2 + Math.cos(time * 0.8) * (height * 0.2);
-                    const aurG = c.createRadialGradient(aurX, aurY, 20, width/2, height/2, Math.max(width, height) * 0.75);
-                    aurG.addColorStop(0, `hsla(${aHue1}, 100%, 65%, 0.85)`);
-                    aurG.addColorStop(0.5, `hsla(${aHue2}, 100%, 45%, 0.5)`);
-                    aurG.addColorStop(1, 'rgba(0, 20, 10, 0)');
-                    c.fillStyle = aurG; c.fillRect(0, 0, width, height);
-                    break;
-
-                case 'chroma-shift':
-                    const baseHueH = (time * 110) % 360;
-                    const gradH = c.createRadialGradient(width * 0.5 + Math.sin(time * 2) * (width * 0.3), height * 0.5 + Math.cos(time * 2) * (height * 0.3), 10, width/2, height/2, Math.max(width, height));
-                    gradH.addColorStop(0, `hsl(${baseHueH}, 100%, 65%)`); 
-                    gradH.addColorStop(0.5, `hsl(${(baseHueH + 120) % 360}, 100%, 50%)`); 
-                    gradH.addColorStop(1, `hsl(${(baseHueH + 240) % 360}, 100%, 35%)`);
-                    c.fillStyle = gradH; c.fillRect(0, 0, width, height);
-                    break;
-
-                case 'rainbow-wave':
-                    const angle = time * 0.5;
-                    const gradW = c.createLinearGradient(width/2 + Math.cos(angle)*width, height/2 + Math.sin(angle)*height, width/2 - Math.cos(angle)*width, height/2 - Math.sin(angle)*height);
-                    for (let i = 0; i <= 10; i++) gradW.addColorStop(i/10, `hsl(${((time * 60) + i * 36) % 360}, 100%, 55%)`);
-                    c.fillStyle = gradW; c.fillRect(0, 0, width, height);
-                    break;
-
-                case 'spiral-wave':
-                    const cx = width / 2;
-                    const cy = height / 2;
-                    const maxR = Math.max(width, height) * 0.7;
-                    const spiralGrad = c.createRadialGradient(cx, cy, 0, cx, cy, maxR);
-                    const sHue = (time * 75) % 360;
-                    spiralGrad.addColorStop(0, `hsl(${sHue}, 100%, 70%)`);
-                    spiralGrad.addColorStop(0.4, `hsl(${(sHue + 90) % 360}, 100%, 55%)`);
-                    spiralGrad.addColorStop(0.8, `hsl(${(sHue + 180) % 360}, 100%, 40%)`);
-                    spiralGrad.addColorStop(1, '#000000');
-                    c.fillStyle = spiralGrad; c.fillRect(0, 0, width, height);
-                    break;
-
-                case 'cascading-rainbow':
-                    const gradC = c.createLinearGradient(0, 0, width * 0.5, height);
-                    for (let i = 0; i <= 10; i++) gradC.addColorStop(i/10, `hsl(${((time * 80) + i * 36) % 360}, 100%, 55%)`);
-                    c.fillStyle = gradC; c.fillRect(0, 0, width, height);
-                    break;
-
-                case 'chroma-breathing':
-                    const breathVal = Math.sin(time * 2);
-                    const bLum = Math.max(0, breathVal);
-                    const breathCycleIndex = Math.floor(time * 2 / (Math.PI * 2));
-
-                    if (breathCycleIndex !== prevBreathCycle && breathVal < -0.95) {
-                        currentBreathHue = (currentBreathHue + 75 + Math.floor(Math.random() * 120)) % 360;
-                        prevBreathCycle = breathCycleIndex;
-                    }
-
-                    const bGrad = c.createRadialGradient(width/2, height/2, 10, width/2, height/2, Math.max(width, height) * 0.7);
-                    bGrad.addColorStop(0, `hsla(${currentBreathHue}, 100%, ${65 * bLum}%, 1)`);
-                    bGrad.addColorStop(1, `hsla(${currentBreathHue}, 100%, ${10 * bLum}%, 1)`);
-                    c.fillStyle = bGrad; c.fillRect(0, 0, width, height);
-                    break;
-
-                case 'logi-lightsync':
-                    const logiHue = (time * 60) % 360;
-                    const logiG = c.createLinearGradient(0, 0, width, height);
-                    logiG.addColorStop(0, `hsl(${logiHue}, 100%, 50%)`);
-                    logiG.addColorStop(1, `hsl(${(logiHue + 60) % 360}, 100%, 40%)`);
-                    c.fillStyle = logiG; c.fillRect(0, 0, width, height);
-                    break;
-
-                case 'msi-mystic':
-                    const mGrad = c.createRadialGradient(width/2, height/2, 20, width/2, height/2, Math.max(width, height)*0.6);
-                    const mHue = (time * 50) % 360;
-                    mGrad.addColorStop(0, `hsl(${mHue}, 100%, 65%)`);
-                    mGrad.addColorStop(0.5, `hsl(${(mHue + 180) % 360}, 100%, 45%)`);
-                    mGrad.addColorStop(1, '#000000');
-                    c.fillStyle = mGrad; c.fillRect(0, 0, width, height);
-                    break;
-
-                case 'nzxt-cam':
-                    const nzHue = (time * 65) % 360;
-                    const nzGrad = c.createLinearGradient(0, height, width, 0);
-                    nzGrad.addColorStop(0, `hsl(${nzHue}, 100%, 60%)`);
-                    nzGrad.addColorStop(1, `hsl(${(nzHue + 90) % 360}, 100%, 50%)`);
-                    c.fillStyle = nzGrad; c.fillRect(0, 0, width, height);
-                    break;
-
-                case 'breath-spectrum':
-                    const bsVal = Math.sin(time * 1.8) * 0.5 + 0.5;
-                    const bsHue = (time * 50) % 360;
-                    const bsGrad = c.createRadialGradient(width/2, height/2, 0, width/2, height/2, Math.max(width, height)*0.75);
-                    bsGrad.addColorStop(0, `hsl(${bsHue}, 100%, ${70 * bsVal}%)`);
-                    bsGrad.addColorStop(0.5, `hsl(${(bsHue + 60) % 360}, 100%, ${45 * bsVal}%)`);
-                    bsGrad.addColorStop(1, `hsl(${(bsHue + 120) % 360}, 100%, ${15 * bsVal}%)`);
-                    c.fillStyle = bsGrad; c.fillRect(0, 0, width, height);
-                    break;
+            if (type === 'chroma-breathing' && !colorClock.paired()) {
+                const cycle = Math.floor(colorTime / Math.PI);
+                if (cycle !== prevBreathCycle && Math.sin(colorTime * 2) < -0.95) {
+                    currentBreathHue = (currentBreathHue + 75 + Math.floor(Math.random() * 120)) % 360;
+                    prevBreathCycle = cycle;
+                }
             }
+            Index2LightColors.draw(type, c, { width, height, time, colorTime, currentBreathHue });
         }
-
-        // Ripple Effect
         function drawRipples(c) {
             for (let i = ripples.length - 1; i >= 0; i--) {
                 const r = ripples[i];
@@ -837,6 +759,92 @@
                 c.restore();
             }
         }
+
+        // Overlay the root scrollbar without reserving a gutter beside the artwork.
+        (() => {
+            const rail = document.createElement('div');
+            rail.id = 'page-scrollbar';
+            rail.setAttribute('aria-hidden', 'true');
+            const thumb = document.createElement('div');
+            thumb.id = 'page-scrollbar-thumb';
+            rail.append(thumb);
+            document.body.append(rail);
+            let timer, drag = null, travel = 0, maxScroll = 0;
+            function layout() {
+                const root = document.scrollingElement;
+                maxScroll = Math.max(0, root.scrollHeight - root.clientHeight);
+                const height = Math.min(innerHeight, Math.max(32, innerHeight * root.clientHeight / root.scrollHeight));
+                travel = innerHeight - height;
+                rail.hidden = maxScroll === 0;
+                thumb.style.height = `${height}px`;
+                thumb.style.transform = `translateY(${maxScroll ? root.scrollTop / maxScroll * travel : 0}px)`;
+            }
+            function reveal() {
+                layout();
+                rail.classList.add('active');
+                clearTimeout(timer);
+                if (!drag) timer = setTimeout(() => rail.classList.remove('active'), 650);
+            }
+            window.addEventListener('scroll', reveal, { passive: true });
+            window.addEventListener('resize', layout);
+            new ResizeObserver(layout).observe(document.body);
+            rail.addEventListener('pointerdown', event => {
+                if (event.button !== 0) return;
+                layout();
+                event.preventDefault();
+                const top = document.scrollingElement.scrollTop / maxScroll * travel;
+                drag = { offset: event.target === thumb ? event.clientY - top : parseFloat(thumb.style.height) / 2 };
+                rail.setPointerCapture(event.pointerId);
+                reveal();
+                move(event);
+            });
+            function move(event) {
+                if (!drag || !travel) return;
+                window.scrollTo({ top: Math.max(0, Math.min(travel, event.clientY - drag.offset)) / travel * maxScroll, behavior: 'instant' });
+            }
+            rail.addEventListener('pointermove', move);
+            rail.addEventListener('lostpointercapture', () => { drag = null; reveal(); });
+            rail.addEventListener('pointerup', event => rail.releasePointerCapture(event.pointerId));
+            rail.addEventListener('pointercancel', event => rail.releasePointerCapture(event.pointerId));
+            layout();
+        })();
+
+        // Share user-selected settings only; animation time, phases and geometry remain local.
+        const lightingPublisher = Index2LightingChannel.publisher(() => ({
+            speed:speedMultiplier, rgb:activeRGB, master:isMasterAllMode ? masterModeType : null,
+            list:rgbList, color:colorClock.snapshot()
+        }));
+        const pairing = Index2Pair({
+            start: () => { colorClock.start(time, speedMultiplier, currentBreathHue); lightingPublisher.start(); },
+            stop: () => {
+                lightingPublisher.stop();
+                const last = colorClock.stop(time);
+                if (last) { colorTime=last.time; currentBreathHue=last.hue; prevBreathCycle=Math.floor(last.time/Math.PI); }
+            },
+            button: document.getElementById('pair-button'),
+            status: document.getElementById('pair-status'),
+            read: () => ({ speed: speedMultiplier, rgb: activeRGB, optical: activeOptical,
+                master: isMasterAllMode ? masterModeType : null, color: colorClock.snapshot() }),
+            apply: state => {
+                if (!state || !Number.isFinite(state.speed) || state.speed < 0 || state.speed > 2 ||
+                    !rgbList.includes(state.rgb) || !Object.hasOwn(OpticalRegistry, state.optical) ||
+                    ![null, 'smooth', 'chaos'].includes(state.master)) return;
+                speedMultiplier = state.speed;
+                colorClock.adopt(state.color);
+                speedSlider.value = state.speed;
+                speedVal.textContent = state.speed.toFixed(2) + 'x';
+                disableMasterMode();
+                activeRGB = state.rgb;
+                rgbBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.rgb === state.rgb));
+                opticalBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.optical === state.optical));
+                if (activeOptical !== state.optical) setOpticalMode(state.optical);
+                if (state.master) toggleMasterMode(state.master, state.master === 'smooth' ? btnAllSmooth : btnAllChaos);
+                lightingPublisher.changed();
+            }
+        });
+        function shareColors() { colorClock.retime(speedMultiplier); pairing.changed(); lightingPublisher.changed(); }
+        speedSlider.addEventListener('input', shareColors);
+        [...rgbBtns, ...opticalBtns, btnAllSmooth, btnAllChaos].forEach(btn => btn.addEventListener('click', shareColors));
 
         // Initialize Engine
         resize();

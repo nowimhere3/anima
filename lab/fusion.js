@@ -7,7 +7,7 @@
 (function () {
     "use strict";
     const C = LabCompositor;
-    const $ = id => document.getElementById(id);
+    const $ = id => document.getElementById(id) || PanelPopout.find(id);
     const qs = new URLSearchParams(location.search);
 
     /* ---------- Canvases ---------- */
@@ -171,7 +171,9 @@
     /* ---------- Stage 1 Light Field (World, once per frame) ---------- */
     function updateLight(dt) {
         const s = scene();
+        window.AnimaLightingSubscriber?.updateStatus(s);
         if (!s || !C.sceneUsesLight(s)) return;
+        if (window.AnimaLightingSubscriber?.render(lightCtx, 256, 256)) { frame.lightRev++; return; }
         World.update(dt * 0.6, s.light.speed);
         state.lightAcc += dt;
         if (state.lightAcc >= 1 / LIGHT_HZ || !frame.lightRev) {
@@ -294,6 +296,10 @@
         if (!s) return;
 
         const tS1Start = performance.now();
+        if (!state.stage1Playing && window.AnimaLightingSubscriber?.joined()) {
+            updateLight(0);
+            state.stage1Dirty = true;
+        }
         if (state.stage1Playing) {
             s.playing = true;
             C.advanceScene(s, dt);
@@ -420,7 +426,7 @@
         if (tabName !== 'source' && tabName !== 'optics') return;
         state.activeTab = tabName;
         document.body.dataset.ftab = tabName;
-        document.querySelectorAll('#fusionTabs button').forEach(b => {
+        $('fusionTabs').querySelectorAll('button').forEach(b => {
             b.setAttribute('aria-selected', String(b.dataset.ftab === tabName));
         });
     }
@@ -647,7 +653,7 @@
         i = (i + d + ids.length) % ids.length;
         selectLayer(ids[i]);
         if (focus) {
-            const r = document.querySelector(`[data-layer-id="${ids[i]}"]`);
+            const r = $('layerList').querySelector(`[data-layer-id="${ids[i]}"]`);
             if (r) r.focus();
         }
     }
@@ -679,8 +685,7 @@
         box.appendChild(el('h4', { text: 'Appearance' }));
         box.appendChild(slider('Opacity', 0, 1, .01, sp.opacity, v => v.toFixed(2), v => patchLayer(id, { opacity: v }), 'layerOpacity'));
         box.appendChild(select('Blend', [['source-over', 'Normal'], ['screen', 'Screen'], ['multiply', 'Multiply']], sp.blend, v => patchLayer(id, { blend: v })));
-        const lightOpts = [['direct', 'Direct'], ['light', 'Color Tint'], ['backlight', 'Backlight']];
-        if (sp.light && sp.light.mode === 'both') lightOpts.push(['both', 'Both']);
+        const lightOpts = [['direct', 'Direct'], ['light', 'Color Tint'], ['backlight', 'Backlight'], ['both', 'Both']];
         box.appendChild(seg('Lighting', lightOpts, sp.light.mode, v => {
             let nextStr = typeof sp.light.strength === 'number' ? sp.light.strength : 0;
             if (v !== 'direct' && !(nextStr > 0)) {
@@ -1459,6 +1464,21 @@
     }
 
     /* ---------- Collapsible Sections Memory ---------- */
+    /* Top control group collapse: presentation only. Toggles the group's `hidden` attribute and the
+       button's aria state; never calls selectTab and touches no playback, scene or stage state.
+       Bound to node references (not document lookups), so it keeps working wherever the card is moved. */
+    function initTopGroupToggle() {
+        const btn = $('topGroupToggle'), group = $('fusionTopGroup');
+        if (!btn || !group) return;
+        btn.addEventListener('click', () => {
+            const collapse = !group.hidden;
+            group.hidden = collapse;
+            btn.setAttribute('aria-expanded', String(!collapse));
+            btn.textContent = collapse ? '▸ Controls' : '▾ Controls';
+            btn.title = collapse ? 'Show the playback, optics, feed and stage-tab rows' : 'Collapse the playback, optics, feed and stage-tab rows';
+        });
+    }
+
     function initCollapsibleSections() {
         const key = 'anima_fusion_section_states';
         let saved = {};
@@ -1666,6 +1686,8 @@
         OpticalEngine.init(fusionCanvas);
         wire();
         initCollapsibleSections();
+        initTopGroupToggle();
+        PanelPopout.init({ panelSelector: '#panel', title: 'Anima Fusion', storageKey: 'anima_fusion_panel_float', mirrorBodyData: ['ftab'] });
 
         const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
         const still = qs.get('still') === '1';
@@ -1730,6 +1752,7 @@
         addImageLayer,
         importFiles,
         renderNow,
+        refreshLighting() { frame.lightRev=0; state.lightAcc=1; state.stage1Dirty=true; renderNow(); },
         renderDirectStage1Now,
         renderStage1Now,
         renderStage2Now,

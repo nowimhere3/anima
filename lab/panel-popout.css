@@ -1,0 +1,30 @@
+/* ============================================================
+   PANEL POP-OUT — UI-only styles for the full Fusion settings card.
+   The PiP window copies every stylesheet, so these rules apply there too.
+   ============================================================ */
+.fusion-header-actions { display: flex; align-items: center; gap: 6px; }
+.panel-popout-btn { font-size: 12px; padding: 4px 10px; white-space: nowrap; }
+.panel-popout-note { margin: 0 0 8px; font-size: 11.5px; color: #cfc8e6; }
+.panel-popout-note:empty { display: none; }
+
+/* Placeholder left in the page while the card is away */
+.panel-away { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; position: relative; z-index: 2; box-sizing: border-box;
+    margin: 30px auto 80px; width: min(760px, calc(100vw - 32px)); padding: 12px 16px; border-radius: 12px; font-size: 12.5px; color: #cfc8e6;
+    background: rgba(12, 10, 24, .85); border: 1px dashed rgba(255, 255, 255, .25); }
+.panel-away > span { flex: 1; }
+body.hide-ui .panel-away { display: none; }
+
+/* The card itself while detached: fill the window instead of centring as a page card */
+.panel.panel-popped { margin: 0; width: auto; max-width: none; min-height: 100vh; border-radius: 0; border: 0; box-shadow: none;
+    backdrop-filter: none; background: #0c0a18; }
+
+/* In-page floating window (fallback when Document PiP is unavailable or refused) */
+.panel-float { position: fixed; z-index: 40; top: 16px; right: 16px; width: 480px; height: 80vh; min-width: 300px; min-height: 240px;
+    max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); display: flex; flex-direction: column; box-sizing: border-box;
+    background: #0c0a18; border: 1px solid rgba(255, 255, 255, .22); border-radius: 14px; box-shadow: 0 16px 48px rgba(0, 0, 0, .65);
+    resize: both; overflow: hidden; }
+.panel-float-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; cursor: move;
+    user-select: none; touch-action: none; border-bottom: 1px solid rgba(255, 255, 255, .12); font-size: 12px; }
+.panel-float-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.panel-float .panel.panel-popped { min-height: 0; }
+body.hide-ui .panel-float { display: none; }

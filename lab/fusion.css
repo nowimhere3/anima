@@ -24,6 +24,8 @@ body.hide-ui .panel { display: none; }
 
 .fusion-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
 h1 { font-size: 15px; margin: 0; letter-spacing: .08em; text-transform: uppercase; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.top-group-toggle { font-size: 12px; padding: 4px 10px; white-space: nowrap; }
+.fusion-top-group[hidden] { display: none; }
 .fusion-badge { font-size: 10px; padding: 2px 7px; border-radius: 999px; background: linear-gradient(135deg, #5b3fb5, #b8467a); color: #fff; letter-spacing: .1em; }
 h2 { font-size: 11px; margin: 16px 0 6px; text-transform: uppercase; letter-spacing: .12em; color: #b9a8e0; font-weight: 600; }
 h3 { font-size: 13px; margin: 10px 0 2px; }

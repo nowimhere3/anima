@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Anima Fusion — Live Art Lab Into Sandbox</title>
     <link rel="stylesheet" href="lab/fusion.css">
+    <link rel="stylesheet" href="lab/panel-popout.css">
 </head>
 <body class="anima-fusion" data-ftab="source">
 
@@ -23,7 +24,15 @@
         <header>
             <div class="fusion-header">
                 <h1>Anima Fusion <span class="fusion-badge">Stage 1 → Stage 2 Live</span></h1>
+                <span class="fusion-header-actions">
+                <button id="panelPopoutBtn" type="button" class="btn panel-popout-btn" title="Detach the whole settings card into its own window so you can watch the artwork while adjusting">Pop Out</button>
+                <button id="topGroupToggle" type="button" class="btn top-group-toggle" aria-expanded="true" aria-controls="fusionTopGroup" title="Collapse the playback, optics, feed and stage-tab rows">▾ Controls</button>
+                </span>
             </div>
+            <p id="panelPopoutNote" class="panel-popout-note" role="status"></p>
+
+            <!-- Top control group: the four rows below collapse together (presentation only) -->
+            <div id="fusionTopGroup" class="fusion-top-group">
 
             <!-- Dual-stage transport bar (always accessible across tabs) -->
             <div class="transport-bar" role="group" aria-label="Playback and capture controls">
@@ -55,6 +64,7 @@
                 <button type="button" role="tab" id="tabBtnSource" data-ftab="source" aria-selected="true">Tab 1 — Art Lab / Source</button>
                 <button type="button" role="tab" id="tabBtnOptics" data-ftab="optics" aria-selected="false">Tab 2 — Sandbox / Optics</button>
             </div>
+            </div><!-- /#fusionTopGroup -->
         </header>
 
         <!-- ========================================================= -->
@@ -245,6 +255,7 @@
     <script src="lab/optics.js"></script>
     <script src="lab/compositor.js"></script>
     <script src="sandbox/optics.js"></script>
+    <script src="lab/panel-popout.js"></script>
     <script src="lab/fusion.js"></script>
     <script src="lab/export/offline-renderer.js"></script>
 </body>

@@ -186,7 +186,53 @@ const LabCompositor = (function () {
         }
     }
 
+    const groupBuffers = new WeakMap();
+
+    function getGroupBuffer(scene, targetW, targetH) {
+        let entry = groupBuffers.get(scene);
+        if (!entry) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            entry = { canvas, ctx };
+            groupBuffers.set(scene, entry);
+        }
+        if (entry.canvas.width !== targetW || entry.canvas.height !== targetH) {
+            entry.canvas.width = targetW;
+            entry.canvas.height = targetH;
+        }
+        entry.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        entry.ctx.clearRect(0, 0, targetW, targetH);
+        return entry;
+    }
+
+    function hasVisibleMultiply(scene) {
+        if (!scene || !scene.layers) return false;
+        for (let i = 0; i < scene.layers.length; i++) {
+            const rt = scene.layers[i];
+            if (rt && rt.spec && rt.spec.visible && rt.spec.blend === 'multiply') {
+                return true;
+            }
+        }
+        return false;
+    }
+
     function renderScene(scene, ctx, frame) {
+        // Strict restriction: Non-Multiply scenes execute the UNCHANGED original render path
+        if (!hasVisibleMultiply(scene)) {
+            ctx.setTransform(scene.q, 0, 0, scene.q, 0, 0);
+            ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+            ctx.clearRect(0, 0, scene.W, scene.H);
+            if (scene.background && scene.background !== 'transparent') {
+                ctx.fillStyle = scene.background;
+                ctx.fillRect(0, 0, scene.W, scene.H);
+            }
+            const order = scene.layers.slice().sort((a, b) => (a.spec.z || 0) - (b.spec.z || 0));
+            for (const rt of order) if (rt.spec.visible) { ctx.setTransform(scene.q, 0, 0, scene.q, 0, 0); drawLayer(scene, ctx, rt); }
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            return;
+        }
+
+        // Isolated transparent artwork compositing path (only for scenes containing visible multiply)
         ctx.setTransform(scene.q, 0, 0, scene.q, 0, 0);
         ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
         ctx.clearRect(0, 0, scene.W, scene.H);
@@ -194,8 +240,21 @@ const LabCompositor = (function () {
             ctx.fillStyle = scene.background;
             ctx.fillRect(0, 0, scene.W, scene.H);
         }
+
+        const targetW = ctx.canvas && ctx.canvas.width ? ctx.canvas.width : Math.max(1, Math.round(scene.W * scene.q));
+        const targetH = ctx.canvas && ctx.canvas.height ? ctx.canvas.height : Math.max(1, Math.round(scene.H * scene.q));
+        const group = getGroupBuffer(scene, targetW, targetH);
+
         const order = scene.layers.slice().sort((a, b) => (a.spec.z || 0) - (b.spec.z || 0));
-        for (const rt of order) if (rt.spec.visible) { ctx.setTransform(scene.q, 0, 0, scene.q, 0, 0); drawLayer(scene, ctx, rt); }
+        for (const rt of order) if (rt.spec.visible) {
+            group.ctx.setTransform(scene.q, 0, 0, scene.q, 0, 0);
+            drawLayer(scene, group.ctx, rt);
+        }
+
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(group.canvas, 0, 0);
         ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
 
